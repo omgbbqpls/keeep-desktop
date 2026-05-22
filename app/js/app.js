@@ -794,7 +794,7 @@ async function copyBudgetFromPrevMonth() {
   });
   budgets[monthKey(currentYear, currentMonth)] = curBm;
   S.set('budgets', budgets);
-  renderBudget();
+  refreshDataViews();
   toast('Budget gekopieerd van ' + maandNaam(prevYear, prevMonth) + ' ✓');
 }
 
@@ -808,7 +808,7 @@ async function clearMonthBudgets() {
   pushUndo();
   budgets[monthKey(currentYear, currentMonth)] = {};
   S.set('budgets', budgets);
-  renderBudget();
+  refreshDataViews();
   toast('Budgetten van ' + maandNaam(currentYear, currentMonth) + ' gewist.');
 }
 
@@ -1081,8 +1081,8 @@ function openStandardRestoreModal(mode = 'restore') {
   if (confirmBtn) confirmBtn.textContent = mode === 'new' ? 'Budget aanmaken' : 'Herstellen';
   if (intro) {
     intro.textContent = mode === 'new'
-      ? 'Kies welke standaardcategorieën je in je nieuwe budget wilt zetten.'
-      : 'Kies welke standaardcategorieën je wilt terugzetten. Rekeningen, transacties en huidige budgetten worden daarna gewist.';
+      ? 'Kies welke standaardpotjes je in je nieuwe budget wilt zetten.'
+      : 'Kies welke standaardpotjes je wilt terugzetten. Rekeningen, transacties en huidige budgetten worden daarna gewist.';
   }
   renderStandardRestoreOptions();
   openModal('modal-standard-restore');
@@ -1097,7 +1097,7 @@ function renderStandardRestoreOptions() {
       <section class="standard-choice-group">
         <div class="standard-choice-head">
           <strong>${appEscapeHtml(group.name)}</strong>
-          <span>${group.cats.length} categorieën</span>
+          <span>${group.cats.length} potjes</span>
         </div>
         <div class="standard-choice-list">
           ${group.cats.map(rawName => {
@@ -1129,14 +1129,14 @@ async function confirmStandardRestore() {
   );
   const count = selectedKeys.size;
   if (!count) {
-    toast('Kies minstens één standaardcategorie.');
+    toast('Kies minstens één standaardpotje.');
     return;
   }
 
   const title = _standardRestoreMode === 'new' ? 'Nieuw budget' : 'Standaard herstellen';
   const message = _standardRestoreMode === 'new'
-    ? `Nieuw budget aanmaken met ${count} standaardcategorieën? Je huidige budget wordt vervangen.`
-    : `Alles wissen en standaard herstellen met ${count} gekozen categorieën? Dit kan niet ongedaan worden gemaakt.`;
+    ? `Nieuw budget aanmaken met ${count} standaardpotjes? Je huidige budget wordt vervangen.`
+    : `Alles wissen en standaard herstellen met ${count} gekozen potjes? Dit kan niet ongedaan worden gemaakt.`;
   if (!await kConfirm(message, title, true)) return;
 
   closeModal('modal-standard-restore');
@@ -1155,7 +1155,7 @@ async function resetBudgets() {
   goals   = {};
   S.set('budgets', budgets);
   S.set('goals', goals);
-  render();
+  refreshDataViews();
   closeModal('modal-settings');
   toast('Budgetten en doelen gewist.');
 }

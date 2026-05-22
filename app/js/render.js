@@ -339,7 +339,7 @@ function renderBudget() {
         </button>
         <span class="group-name" title="${canEditGroup ? 'Dubbelklik om te hernoemen' : ''}" ${canEditGroup ? `ondblclick="renameGroup('${grp.id}')"` : ''}>${isCCGrp ? grp.name.replace(/^\S+\s*/, '') : grp.name}</span>
         ${grp.name !== 'Inkomen' ? `<button class="group-fill-btn" title="Vul alle potjes in deze hoofdcategorie" onclick="fillAllGoals('${grp.id}')" ${canFillGroup ? '' : 'disabled'}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 3v18"/><path d="M5 10l7-7 7 7"/><path d="M5 21h14"/></svg><span>Vul potjes</span></button>` : ''}
-        ${canEditGroup ? `<button class="group-add-cat-btn" title="Categorie toevoegen" onclick="addCategory('${grp.id}')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>` : ''}
+        ${canEditGroup ? `<button class="group-add-cat-btn" title="Potje toevoegen" onclick="addCategory('${grp.id}')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>` : ''}
         ${canEditGroup ? `<span class="cat-inline-actions" style="margin-left:4px;">
           <button class="cat-inline-btn" title="Hernoemen" onclick="renameGroup('${grp.id}')">✎</button>
         </span>` : ''}
@@ -617,19 +617,31 @@ function inlineTxnTargetAccountId(value) {
     : null;
 }
 
+function txnCategoryOptionLabel(cat) {
+  if (!cat) return '';
+  const available = calcCatAvailable(cat.id);
+  return isIncomeCat(cat.id)
+    ? cat.name
+    : available === 0 ? cat.name : `${cat.name} · ${fmt(available)}`;
+}
+
+function txnAccountTargetOptionLabel(acc) {
+  return `⇄ ${acc.name} · ${fmt(calcAccountBalance(acc.id))}`;
+}
+
 function inlineTxnOptions(selectedValue = '') {
   let html = '<option value="">— Kies —</option>';
   groups.forEach(grp => {
     html += `<optgroup label="${escapeHtml(grp.name)}">`;
     grp.cats.forEach(cat => {
-      html += `<option value="${escapeHtml(cat.id)}" ${cat.id === selectedValue ? 'selected' : ''}>${escapeHtml(cat.name)}</option>`;
+      html += `<option value="${escapeHtml(cat.id)}" ${cat.id === selectedValue ? 'selected' : ''}>${escapeHtml(txnCategoryOptionLabel(cat))}</option>`;
     });
     html += '</optgroup>';
   });
   html += '<optgroup label="Eigen rekeningen">';
   accounts.forEach(acc => {
     const value = inlineTxnTargetAccountValue(acc.id);
-    html += `<option value="${escapeHtml(value)}" ${value === selectedValue ? 'selected' : ''}>⇄ ${escapeHtml(acc.name)}</option>`;
+    html += `<option value="${escapeHtml(value)}" ${value === selectedValue ? 'selected' : ''}>${escapeHtml(txnAccountTargetOptionLabel(acc))}</option>`;
   });
   html += '</optgroup>';
   return html;
@@ -774,7 +786,7 @@ function saveInlineTxn() {
   const inflow = parseBedrag(document.getElementById('inline-txn-inflow')?.value || '');
 
   if (!accId) { toast('Kies een rekening.'); return; }
-  if (!target) { toast('Kies een categorie of rekening.'); return; }
+  if (!target) { toast('Kies een potje of rekening.'); return; }
   if (outflow > 0 && inflow > 0) { toast('Gebruik uitgaand of inkomend, niet allebei.'); return; }
   if (outflow <= 0 && inflow <= 0) { toast('Vul een bedrag in.'); return; }
   if (toAccId && accId === toAccId) { toast('Van en naar zijn dezelfde rekening.'); return; }
@@ -821,7 +833,7 @@ function saveInlineTxn() {
   _txnInlineEditId = null;
   _txnInlineAdding = false;
   S.set('transactions', transactions);
-  render();
+  refreshDataViews();
 }
 
 function renderTransactions() {
@@ -993,7 +1005,7 @@ async function openAccountCheck() {
     createdAt: new Date().toISOString()
   });
   S.set('transactions', transactions);
-  render();
+  refreshDataViews();
   toast(`Correctie geboekt: ${fmt(diff)}.`);
 }
 
@@ -1012,7 +1024,7 @@ function _deleteSingleTxn(id) {
     ? transactions.filter(t => t.transferId !== tx.transferId)
     : transactions.filter(t => t.id !== id);
   S.set('transactions', transactions);
-  render();
+  refreshDataViews();
 }
 
 function deleteSelectedTxns() {
@@ -1028,7 +1040,7 @@ function deleteSelectedTxns() {
   transactions = transactions.filter(t => !_txnSelected.has(t.id) && !transferIds.has(t.transferId));
   _txnSelected.clear();
   S.set('transactions', transactions);
-  render();
+  refreshDataViews();
   toast(`${n} transactie${n !== 1 ? 's' : ''} verwijderd.`);
 }
 
@@ -1073,7 +1085,7 @@ function _accDelete(accId) {
   pushUndo();
   accounts = accounts.filter(a => a.id !== accId);
   S.set('accounts', accounts);
-  render();
+  refreshDataViews();
   rebuildAccFilters();
   toast(`Rekening "${acc.name}" verwijderd.`);
 }
@@ -1085,6 +1097,11 @@ function render() {
   renderAccounts();
   // Detail-paneel altijd meteen bijwerken na elke datawijziging
   if (_cdpCatId && typeof refreshCatDetail === 'function') refreshCatDetail();
+}
+
+function refreshDataViews() {
+  render();
+  if (document.getElementById('assign-popover') && typeof renderAssignMenu === 'function') renderAssignMenu();
 }
 
 // ── BEREKENINGEN ──────────────────────────────────────────────────────────
@@ -1867,6 +1884,21 @@ function buildCatMeta({ cat, income, goal, goalTarget, budgeted, spent, availabl
     // Negatief: overschreden — toon uitgegeven van budget (YNAB-stijl)
     statusKey  = 'over';
     statusText = `${fmt(Math.abs(available))} te veel uitgegeven`;
+  } else if (goal && need > 0) {
+    if (needLeft > 0) {
+      const deadline = goalDeadlineShort(goal);
+      statusKey = isUrgent ? 'need' : 'eventually';
+      statusText = `${fmt(needLeft)} nodig${deadline ? ' ' + deadline : ''}`;
+    } else if (available === 0 && spentAbs > 0) {
+      statusKey = 'spent';
+      statusText = 'Behaald, potje is leeg';
+    } else if (spentAbs > 0) {
+      statusKey = 'funded';
+      statusText = `Gedekt · ${fmt(spentAbs)} van ${fmt(need)} besteed`;
+    } else {
+      statusKey = 'funded';
+      statusText = 'Volledig budget gedekt';
+    }
   } else if (budgeted === 0 && !goal) {
     // Geen budget ingesteld
     statusKey  = 'idle';
@@ -1875,7 +1907,7 @@ function buildCatMeta({ cat, income, goal, goalTarget, budgeted, spent, availabl
     // Budget aanwezig: toon beschikbaar bedrag
     if (available === 0) {
       // 0% beschikbaar → Budget opgebruikt (amber)
-      statusKey  = 'low';
+      statusKey  = 'spent';
       statusText = 'Volledig besteed';
     } else {
       const availPct = Math.round(available / budgeted * 100);
@@ -1889,12 +1921,6 @@ function buildCatMeta({ cat, income, goal, goalTarget, budgeted, spent, availabl
         statusText = `${fmt(available)} beschikbaar`;
       }
     }
-  } else if (goal && needLeft > 0 && isUrgent) {
-    statusKey  = 'need';
-    statusText = `${fmt(needLeft)} nodig`;
-  } else if (goal && needLeft > 0 && !isUrgent) {
-    statusKey  = 'eventually';
-    statusText = `${fmt(needLeft)} nodig`;
   }
   const statusHtml = statusText
     ? `<span class="cat-status-chip cat-status-chip-${statusKey}">${statusText}</span>`
@@ -1903,8 +1929,7 @@ function buildCatMeta({ cat, income, goal, goalTarget, budgeted, spent, availabl
   // Beschikbaar pill
   const pillHtml = buildAvailablePill({ available, goal, goalReached, isUrgent, isOverspent });
 
-  // Resterend-budgetbalk: hoeveel van toegewezen budget is nog over.
-  const barHtml = buildCatBar({ budgeted, available, isOverspent, spent });
+  const barHtml = buildCatBar({ budgeted, available, isOverspent, spent, goal, need });
 
   return { statusHtml, pillHtml, barHtml };
 }
@@ -1956,9 +1981,9 @@ function buildGroupAvailablePill(available, isOverspent) {
   return `<span class="grp-avail-val${cls ? ' ' + cls : ''}">${fmt(available)}</span>`;
 }
 
-function buildCatBar({ budgeted, available, isOverspent, spent }) {
+function buildCatBar({ budgeted, available, isOverspent, spent, goal = null, need = 0 }) {
   // Niets om te tonen
-  if (budgeted === 0 && !isOverspent) return '';
+  if (budgeted === 0 && !isOverspent && !goal) return '';
 
   if (isOverspent) {
     const spentAbs = Math.abs(spent || 0);
@@ -1974,6 +1999,16 @@ function buildCatBar({ budgeted, available, isOverspent, spent }) {
     // Geen budget ingesteld, alleen overspent → volledige rode balk
     return `<div class="cat-bar cat-bar-over">
               <div class="cat-bar-fill" style="width:100%"></div>
+            </div>`;
+  }
+
+  if (goal && need > 0) {
+    const pct = Math.max(0, Math.min(100, Math.round(budgeted / need * 100)));
+    const fullyFunded = budgeted >= need;
+    const fullySpent = fullyFunded && available === 0 && Math.abs(spent || 0) > 0;
+    const tone = fullySpent ? 'spent' : fullyFunded ? 'funded' : 'need';
+    return `<div class="cat-bar cat-bar-${tone}">
+              <div class="cat-bar-fill" style="width:${pct}%"></div>
             </div>`;
   }
 
@@ -2029,13 +2064,7 @@ function setBudget(catId, rawVal) {
   bm[catId]   = cents / 100;
   budgets[monthKey(currentYear, currentMonth)] = bm;
   S.set('budgets', budgets);
-  renderBudget();
-  // Herstel selectie en refresh detail panel na herrender
-  if (_cdpCatId) {
-    const row = document.querySelector(`.cat-row[data-cat-id="${_cdpCatId}"]`);
-    if (row) row.classList.add('cdp-selected');
-    refreshCatDetail();
-  }
+  refreshBudgetSurfaces();
 }
 
 function getGoalFillNeed(catId) {
@@ -2426,6 +2455,7 @@ function assignCoverAll() {
 
 function refreshBudgetSurfaces() {
   renderBudget();
+  renderTransactions();
   if (document.getElementById('assign-popover')) renderAssignMenu();
   if (_cdpCatId) refreshCatDetail();
 }
@@ -2531,7 +2561,7 @@ function renderAssignMenu() {
         <div class="assign-field">
           <label>Naar</label>
           <select id="assign-manual-cat">
-            <option value="">Kies categorie</option>
+            <option value="">Kies potje</option>
             ${cats.map(({ group, cat }) => `<option value="${escapeHtml(cat.id)}">${escapeHtml(group.name)} / ${escapeHtml(cat.name)}</option>`).join('')}
           </select>
         </div>
@@ -2547,7 +2577,7 @@ function assignManual() {
   const cents = parseBedrag(document.getElementById('assign-manual-amount')?.value || '');
   const catId = document.getElementById('assign-manual-cat')?.value || '';
   const rta = calcReadyToAssign();
-  if (!catId) { toast('Kies een categorie.'); return; }
+  if (!catId) { toast('Kies een potje.'); return; }
   if (cents <= 0) { toast('Vul een bedrag in.'); return; }
   if (cents > rta) { toast('Niet genoeg klaar om toe te wijzen.'); return; }
 
@@ -2779,7 +2809,7 @@ function initDragDrop() {
             const [moved] = groups.splice(fromIdx, 1);
             groups.splice(toIdx, 0, moved);
             S.set('groups', groups);
-            renderBudget();
+            refreshBudgetSurfaces();
           }
         }
       } else if (_dragCatId) {
@@ -2836,7 +2866,7 @@ function moveCat(catId, fromGrpId, toGrpId, beforeCatId) {
   }
 
   S.set('groups', groups);
-  renderBudget();
+  refreshBudgetSurfaces();
 }
 
 // ── ALLES SELECTEREN CHECKBOX ─────────────────────────────────────────────
@@ -3402,7 +3432,7 @@ function insightCardTopCats(cats) {
 
   if (!cats.length) {
     wrap.innerHTML = '<p style="color:var(--text3);font-size:12px;">Geen activiteit deze maand.</p>';
-    return insightCard(`Top categorieën — ${maandNaam(currentYear, currentMonth)}`, wrap, 'insight-card-full');
+    return insightCard(`Top potjes — ${maandNaam(currentYear, currentMonth)}`, wrap, 'insight-card-full');
   }
 
   const income   = cats.filter(c => c.isIncome);
@@ -3592,7 +3622,7 @@ function refreshCatDetail() {
     const overspent = !income && available < 0;
     overspendWarning.style.display = overspent ? 'block' : 'none';
     if (overspent) {
-      overspendText.innerHTML = `Je hebt deze categorie met <strong>${fmt(Math.abs(available))}</strong> overschreden. Dek dit tekort, anders kun je je budgetsaldo niet vertrouwen.`;
+      overspendText.innerHTML = `Je hebt dit potje met <strong>${fmt(Math.abs(available))}</strong> overschreden. Dek dit tekort, anders kun je je budgetsaldo niet vertrouwen.`;
     } else {
       overspendText.textContent = '';
     }
@@ -3604,7 +3634,6 @@ function refreshCatDetail() {
   const goalEmpty     = document.getElementById('cdp-goal-empty');
   const goalEmptyAct  = document.getElementById('cdp-goal-empty-actions');
   const reachedEl     = document.getElementById('cdp-goal-reached');
-  const progressWrap  = document.getElementById('cdp-progress-wrap');
 
   if (goalSec) goalSec.style.display = income ? 'none' : 'block';
 
@@ -3622,23 +3651,25 @@ function refreshCatDetail() {
       : budgeted;
     const togo         = Math.max(0, need - funded);
     const reached      = need > 0 && funded >= need;
-    const pct          = need > 0 ? Math.min(100, Math.round(funded / need * 100)) : 0;
-    const color        = reached ? 'var(--green)' : pct >= 50 ? 'var(--amber)' : 'var(--red)';
 
-    // Headline + deadline
+    // Headline
     const headlineEl = document.getElementById('cdp-goal-headline');
-    const deadlineEl = document.getElementById('cdp-goal-deadline');
+    const sublineEl = document.getElementById('cdp-goal-subline');
     if (headlineEl) headlineEl.textContent = goalHeadline(goal);
-    if (deadlineEl) {
-      deadlineEl.textContent = '';
-      deadlineEl.style.display = 'none';
+    if (sublineEl) {
+      const subline = goalTargetSubline(goal);
+      sublineEl.textContent = subline;
+      sublineEl.style.display = subline ? 'inline-flex' : 'none';
     }
 
-    // Budgetstatus + voortgangsbalk
+    // Budgetstatus
     if (reachedEl)    reachedEl.style.display    = reached ? 'flex' : 'none';
-    if (progressWrap) progressWrap.style.display = 'block';
-    const bar = document.getElementById('cdp-progress-bar');
-    if (bar) bar.style.cssText = `width:${pct}%;background:${color};`;
+    const reachedBadge = document.getElementById('cdp-goal-reached-badge');
+    if (reachedBadge) {
+      reachedBadge.textContent = available === 0 && spentAbs > 0
+        ? 'Budget behaald, uitgegeven'
+        : 'Deze maand gedekt';
+    }
 
     // Bedragen
     const [prevYear, prevMonth] = prevYM(currentYear, currentMonth);
@@ -3652,10 +3683,17 @@ function refreshCatDetail() {
     const togoEl = document.getElementById('cdp-goal-togo');
     togoEl.textContent = fmt(togo);
     togoEl.className   = 'cdp-val ' + (togo === 0 ? 'pos' : '');
+
+    const aanvulBtn = document.getElementById('cdp-aanvul-btn');
+    if (aanvulBtn) {
+      aanvulBtn.disabled = togo === 0;
+      aanvulBtn.textContent = togo === 0 ? 'Budget is gevuld' : `⚡ Aanvullen met ${fmt(togo)}`;
+    }
   } else {
     if (goalProgress) goalProgress.style.display = 'none';
     if (reachedEl)    reachedEl.style.display    = 'none';
-    if (progressWrap) progressWrap.style.display = 'none';
+    const sublineEl = document.getElementById('cdp-goal-subline');
+    if (sublineEl) sublineEl.style.display = 'none';
     if (goalEmpty) {
       goalEmpty.style.display = income ? 'none' : 'block';
       if (rawGoal) {
@@ -3673,6 +3711,13 @@ function refreshCatDetail() {
   const hasGoal       = !!goal;
   const canAanvul     = !income && hasGoal;
   if (aanvulInput) aanvulInput.style.display = canAanvul ? 'block' : 'none';
+  if (!canAanvul) {
+    const aanvulBtn = document.getElementById('cdp-aanvul-btn');
+    if (aanvulBtn) {
+      aanvulBtn.disabled = false;
+      aanvulBtn.textContent = '⚡ Volledig aanvullen';
+    }
+  }
 
 
   // Collapsed state toepassen
@@ -3740,7 +3785,7 @@ function cdpAanvul() {
   } else if (goal) {
     needed = calcGoalTarget(_cdpCatId) - current;
   } else {
-    toast('Geen budget ingesteld voor deze categorie.');
+    toast('Geen budget ingesteld voor dit potje.');
     return;
   }
   if (needed <= 0) { toast('Budget al volledig gevuld.'); return; }
@@ -3768,7 +3813,7 @@ function cdpCoverOverspending() {
   if (!_cdpCatId) return;
   const shortage = Math.abs(Math.min(0, calcCatAvailable(_cdpCatId)));
   if (shortage <= 0) {
-    toast('Deze categorie is niet overschreden.');
+    toast('Dit potje is niet overschreden.');
     return;
   }
   // Als er genoeg RTA is, direct dekken zonder modal
@@ -3841,6 +3886,17 @@ function goalHeadline(goal) {
     }
     default: return amt;
   }
+}
+
+function goalTargetSubline(goal) {
+  if (!goal) return '';
+  if (goal.type === 'custom' && goal.mode === 'save') {
+    return goal.targetDate ? `Voor ${fmtDateNL(goal.targetDate)}` : 'Zonder einddatum';
+  }
+  if (goal.type === 'target') {
+    return goal.date || goal.targetDate ? `Voor ${fmtDateNL(goal.date || goal.targetDate)}` : 'Zonder einddatum';
+  }
+  return goalDeadline(goal);
 }
 
 function unitLabel(u, n) {
@@ -4074,7 +4130,7 @@ async function copyPrevMonthBudget() {
     curBm[catId] = val;
   });
   S.set('budgets', budgets);
-  renderBudget();
+  refreshBudgetSurfaces();
   toast(`Budget gekopieerd van ${maandNaam(py, pm)}.`);
 }
 

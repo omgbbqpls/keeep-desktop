@@ -163,7 +163,7 @@ function openTxnModal(catId = null, grpId = null, txnOrId = null) {
 
   const catSel = document.getElementById('txn-cat');
   const isMobileEntry = document.body.classList.contains('mobile-entry') || window.innerWidth <= 768;
-  catSel.innerHTML = `<option value="">${isMobileEntry ? '— Categorie —' : '— Naar —'}</option>`;
+  catSel.innerHTML = `<option value="">${isMobileEntry ? '— Potje —' : '— Naar —'}</option>`;
   catSel.dataset.manualCategory = formTxn || catId ? 'true' : 'false';
   catSel.dataset.autoCategory = 'false';
   delete catSel.dataset.autoPayee;
@@ -173,7 +173,9 @@ function openTxnModal(catId = null, grpId = null, txnOrId = null) {
     grp.cats.forEach(cat => {
       const opt = document.createElement('option');
       opt.value = cat.id;
-      opt.textContent = cat.name;
+      opt.textContent = typeof txnCategoryOptionLabel === 'function'
+        ? txnCategoryOptionLabel(cat)
+        : cat.name;
       optGrp.appendChild(opt);
     });
     catSel.appendChild(optGrp);
@@ -183,7 +185,9 @@ function openTxnModal(catId = null, grpId = null, txnOrId = null) {
   accounts.forEach(acc => {
     const opt = document.createElement('option');
     opt.value = txnTargetAccountValue(acc.id);
-    opt.textContent = `⇄ ${acc.name}`;
+    opt.textContent = typeof txnAccountTargetOptionLabel === 'function'
+      ? txnAccountTargetOptionLabel(acc)
+      : `⇄ ${acc.name}`;
     accOptGrp.appendChild(opt);
   });
   catSel.appendChild(accOptGrp);
@@ -271,8 +275,7 @@ function saveTxn() {
     });
     S.set('transactions', transactions);
     closeModal('modal-txn');
-    render();
-    if (_cdpCatId) refreshCatDetail();
+    refreshDataViews();
     toast(`${fmt(absCents)} overgeboekt naar ${toAcc?.name || 'rekening'}.`);
     return;
   }
@@ -295,8 +298,7 @@ function saveTxn() {
 
   S.set('transactions', transactions);
   closeModal('modal-txn');
-  render();
-  if (_cdpCatId) refreshCatDetail();
+  refreshDataViews();
 }
 
 async function deleteTxn() {
@@ -309,8 +311,7 @@ async function deleteTxn() {
     : transactions.filter(t => t.id !== _editTxnId);
   S.set('transactions', transactions);
   closeModal('modal-txn');
-  render();
-  if (_cdpCatId) refreshCatDetail();
+  refreshDataViews();
 }
 
 // ── REKENING MODAL ────────────────────────────────────────────────────────
@@ -415,7 +416,7 @@ function saveAcc() {
   S.set('accounts', accounts);
   if (typeof ensureCreditCardPaymentGroup === 'function') ensureCreditCardPaymentGroup();
   closeModal('modal-acc');
-  render();
+  refreshDataViews();
   rebuildAccFilters();
 }
 
@@ -426,7 +427,7 @@ async function addGroup() {
   pushUndo();
   groups.push({ id: genId(), name: name.trim(), cats: [] });
   S.set('groups', groups);
-  renderBudget();
+  refreshDataViews();
 }
 
 // Standaard emoji per groepsnaam
@@ -459,13 +460,13 @@ async function addCategory(grpId) {
   const usedEmojis = grp.cats.map(c => [...c.name][0]).filter(Boolean);
   const options = GROUP_DEFAULT_EMOJI[grp.name] || ['📌','🔹','▪️','🔸','▫️','🔺'];
   const emoji = options.find(e => !usedEmojis.includes(e)) || options[0] || '📌';
-  const name = await kPrompt('Naam nieuwe categorie:', '', grp.name + ' — categorie toevoegen');
+  const name = await kPrompt('Naam nieuw potje:', '', grp.name + ' — potje toevoegen');
   if (!name?.trim()) return;
   pushUndo();
   grp.cats.push({ id: genId(), name: emoji + ' ' + name.trim() });
   grp.cats.sort((a, b) => a.name.replace(/^[^\p{L}]+/u,'').localeCompare(b.name.replace(/^[^\p{L}]+/u,''),'nl'));
   S.set('groups', groups);
-  renderBudget();
+  refreshDataViews();
   rebuildCatFilters();
 }
 
@@ -500,7 +501,7 @@ function openMoveModal(fromCatId = null, startMode = null) {
   const fromSel = document.getElementById('move-from');
   const toSel   = document.getElementById('move-to');
   [fromSel, toSel].forEach((sel, idx) => {
-    sel.innerHTML = '<option value="">— Categorie —</option>';
+    sel.innerHTML = '<option value="">— Potje —</option>';
     if (idx === 0) {
       const rtaOpt = document.createElement('option');
       rtaOpt.value = MOVE_SOURCE_RTA;
@@ -666,12 +667,12 @@ function doMove() {
   closeModal('modal-move');
   if (typeof refreshBudgetSurfaces === 'function') refreshBudgetSurfaces();
   else {
-    renderBudget();
+    render();
     if (typeof refreshCatDetail === 'function' && _cdpCatId) refreshCatDetail();
   }
   toast(fromId === MOVE_SOURCE_RTA
     ? `${fmt(cents)} toegewezen.`
-    : `${fmt(cents)} verplaatst tussen categorieën.`);
+    : `${fmt(cents)} verplaatst tussen potjes.`);
 }
 
 // ── FILTERS HERBOUWEN ─────────────────────────────────────────────────────
@@ -693,7 +694,7 @@ function rebuildCatFilters() {
   const sel = document.getElementById('txn-fcat');
   if (!sel) return;
   const current = sel.value;
-  sel.innerHTML = '<option value="">Alle categorieën</option>';
+  sel.innerHTML = '<option value="">Alle potjes</option>';
   groups.forEach(grp => {
     const og = document.createElement('optgroup');
     og.label = grp.name;
@@ -743,7 +744,7 @@ function saveIncome() {
   if (!accId)    { toast('Kies een rekening.'); return; }
   if (cents <= 0){ toast('Vul een bedrag in.'); return; }
   if (!isCashAccount(accId)) { toast('Inkomen kan alleen naar een rekening met eigen geld.'); return; }
-  if (!catId) { toast('Maak eerst een inkomenscategorie aan.'); return; }
+  if (!catId) { toast('Maak eerst een inkomenspotje aan.'); return; }
 
   pushUndo();
   transactions.push({
@@ -755,7 +756,7 @@ function saveIncome() {
 
   S.set('transactions', transactions);
   closeModal('modal-income');
-  render();
+  refreshDataViews();
   toast('✓ Inkomen toegevoegd.');
 }
 
@@ -811,10 +812,14 @@ function openGoalModal(catId) {
   document.getElementById('goal-yearly-next').value = existing.next || 'refill';
 
   // Aangepast (custom)
-  document.getElementById('goal-custom-mode').value =
-    existing.mode || (existing.type === 'target' ? 'save' : 'fillup');
+  const customMode = existing.mode || (existing.type === 'target' ? 'save' : 'fillup');
+  const customHasDate = !!(existing.targetDate || existing.date);
+  const isExistingCustom = existing.type === 'custom' || existing.type === 'target';
+  document.getElementById('goal-custom-mode').value = customMode;
   document.getElementById('goal-custom-date').value =
     existing.targetDate || existing.date || oneYear;
+  const noDateEl = document.getElementById('goal-custom-no-date');
+  if (noDateEl) noDateEl.checked = isExistingCustom && customMode === 'save' && !customHasDate;
   const repeatOn = existing.repeat === true ||
                    existing.type === 'quarterly' ||
                    (existing.type === 'custom' && existing.repeatN);
@@ -825,6 +830,7 @@ function openGoalModal(catId) {
     existing.repeatUnit || 'month';
 
   goalUpdateCustomRepeat();
+  goalUpdateCustomDate();
   goalSwitchTab(tab);
   closeCtxMenu();
   openModal('modal-goal');
@@ -846,6 +852,18 @@ function goalSwitchTab(tab) {
 function goalUpdateCustomRepeat() {
   const on = document.getElementById('goal-custom-repeat').checked;
   document.getElementById('goal-custom-repeat-row').style.display = on ? 'flex' : 'none';
+}
+
+function goalUpdateCustomDate() {
+  const mode = document.getElementById('goal-custom-mode')?.value || 'fillup';
+  const noDate = !!document.getElementById('goal-custom-no-date')?.checked;
+  const dateEl = document.getElementById('goal-custom-date');
+  const dateLabel = document.getElementById('goal-custom-date-label');
+  if (dateLabel) dateLabel.textContent = mode === 'save' ? 'Voor' : 'Op';
+  if (dateEl) {
+    dateEl.disabled = noDate;
+    dateEl.style.opacity = noDate ? '.45' : '';
+  }
 }
 
 function saveGoal() {
@@ -880,7 +898,8 @@ function saveGoal() {
     goal.next       = document.getElementById('goal-yearly-next').value;
   } else if (tab === 'custom') {
     goal.mode       = document.getElementById('goal-custom-mode').value; // fillup | save
-    goal.targetDate = document.getElementById('goal-custom-date').value || null;
+    const noDate    = document.getElementById('goal-custom-no-date')?.checked;
+    goal.targetDate = noDate ? null : (document.getElementById('goal-custom-date').value || null);
     goal.repeat     = document.getElementById('goal-custom-repeat').checked;
     if (goal.repeat) {
       goal.repeatN    = Math.max(1, parseInt(document.getElementById('goal-custom-repeat-n').value, 10) || 1);
@@ -892,7 +911,7 @@ function saveGoal() {
   goals[_goalCatId] = goal;
   S.set('goals', goals);
   closeModal('modal-goal');
-  renderBudget();
+  refreshDataViews();
   if (_cdpCatId === _goalCatId) refreshCatDetail();
 }
 
@@ -901,7 +920,7 @@ function deleteGoal() {
   delete goals[_goalCatId];
   S.set('goals', goals);
   closeModal('modal-goal');
-  renderBudget();
+  refreshDataViews();
   if (_cdpCatId === _goalCatId) refreshCatDetail();
 }
 
@@ -968,7 +987,7 @@ async function renameGroup(grpId) {
   pushUndo();
   grp.name = name.trim();
   S.set('groups', groups);
-  renderBudget();
+  refreshDataViews();
   rebuildCatFilters();
 }
 
@@ -1001,7 +1020,7 @@ function saveCatEdit() {
   const nameEl = document.getElementById('cat-edit-name');
   const subEl = document.getElementById('cat-edit-subscription');
   const nextLabel = (nameEl?.value || '').trim();
-  if (!nextLabel) { toast('Geef de categorie een naam.'); return; }
+  if (!nextLabel) { toast('Geef het potje een naam.'); return; }
 
   const oldParts = splitCategoryDisplayName(cat.name);
   const nextName = /^\p{Emoji}/u.test(nextLabel)
@@ -1022,10 +1041,10 @@ function saveCatEdit() {
   S.set('groups', groups);
   S.set('categoryMeta', categoryMeta);
   closeModal('modal-cat-edit');
-  renderBudget();
+  refreshDataViews();
   rebuildCatFilters();
   if (_cdpCatId === cat.id) openCatDetail(cat.id, _editCatGrpId);
-  toast(`Categorie "${splitCategoryDisplayName(cat.name).label}" bijgewerkt.`);
+  toast(`Potje "${splitCategoryDisplayName(cat.name).label}" bijgewerkt.`);
 }
 
 async function deleteCategoryWithBudgetMove(catId, grpId) {
@@ -1033,7 +1052,7 @@ async function deleteCategoryWithBudgetMove(catId, grpId) {
   const grp = groups.find(g => g.id === grpId);
   if (!cat || !grp) return false;
   if (typeof isProtectedBudgetCat === 'function' && isProtectedBudgetCat(catId)) {
-    toast('Deze categorie is beschermd en kan niet verwijderd worden.');
+    toast('Dit potje is beschermd en kan niet verwijderd worden.');
     return false;
   }
 
@@ -1052,14 +1071,14 @@ async function deleteCategoryWithBudgetMove(catId, grpId) {
 
     if (!targets.length) {
       await kAlert(
-        `"${cat.name}" heeft ${fmt(assignedCents)} toegewezen. Voeg eerst een andere categorie toe of maak het budget vrij.`,
-        'Categorie niet verwijderd'
+        `"${cat.name}" heeft ${fmt(assignedCents)} toegewezen. Voeg eerst een ander potje toe of maak het budget vrij.`,
+        'Potje niet verwijderd'
       );
       return false;
     }
 
     const targetId = await kSelect(
-      `"${cat.name}" heeft ${fmt(assignedCents)} toegewezen. Verplaats dit bedrag eerst naar een andere categorie.`,
+      `"${cat.name}" heeft ${fmt(assignedCents)} toegewezen. Verplaats dit bedrag eerst naar een ander potje.`,
       targets,
       targets[0].value,
       'Budget verplaatsen'
@@ -1071,7 +1090,7 @@ async function deleteCategoryWithBudgetMove(catId, grpId) {
 
     const ok = await kConfirm(
       `${fmt(assignedCents)} verplaatsen naar "${targetCat.name}" en "${cat.name}" verwijderen?`,
-      'Categorie verwijderen',
+      'Potje verwijderen',
       true
     );
     if (!ok) return false;
@@ -1080,7 +1099,7 @@ async function deleteCategoryWithBudgetMove(catId, grpId) {
     bm[targetId] = ((bm[targetId] ?? 0) * 100 + assignedCents) / 100;
     delete bm[catId];
   } else {
-    if (!await kConfirm(`Categorie "${cat.name}" verwijderen?`,"Verwijderen",true)) return false;
+    if (!await kConfirm(`Potje "${cat.name}" verwijderen?`,"Verwijderen",true)) return false;
     pushUndo();
     delete bm[catId];
   }
@@ -1090,9 +1109,9 @@ async function deleteCategoryWithBudgetMove(catId, grpId) {
   S.set('budgets', budgets);
   S.set('groups', groups);
   S.set('categoryMeta', categoryMeta);
-  renderBudget();
+  refreshDataViews();
   rebuildCatFilters();
-  toast(`Categorie "${cat.name}" verwijderd.`);
+  toast(`Potje "${cat.name}" verwijderd.`);
   return true;
 }
 
@@ -1142,7 +1161,7 @@ async function accCtxRename() {
   if (!name?.trim()) return;
   acc.name = name.trim();
   S.set("accounts", accounts);
-  render();
+  refreshDataViews();
   rebuildAccFilters();
   toast(`Rekening hernoemd naar "${acc.name}".`);
 }
@@ -1175,7 +1194,7 @@ async function accCtxAdjust() {
   });
 
   S.set('transactions', transactions);
-  render();
+  refreshDataViews();
   toast(`Saldo "${acc.name}" aangepast naar ${fmt(newBal)}.`);
 }
 
@@ -1237,7 +1256,7 @@ async function accCtxDelete() {
   pushUndo();
   accounts = accounts.filter(a => a.id !== _ctxAccId);
   S.set('accounts', accounts);
-  render();
+  refreshDataViews();
   rebuildAccFilters();
   toast(`Rekening "${acc.name}" verwijderd.`);
 }
@@ -1288,8 +1307,8 @@ function sortCatsAlpha(grpId) {
   pushUndo();
   grp.cats.sort((a, b) => a.name.localeCompare(b.name, 'nl'));
   S.set('groups', groups);
-  renderBudget();
-  toast(`Categorieën in "${grp.name}" alfabetisch gesorteerd.`);
+  refreshDataViews();
+  toast(`Potjes in "${grp.name}" alfabetisch gesorteerd.`);
 }
 
 // ── ALERT MODAL ───────────────────────────────────────────────────────────
@@ -1356,7 +1375,7 @@ async function aanvulGoal(e, catId, manualCents = null) {
   pushUndo();
   bm[catId] = (current + toAdd) / 100;
   S.set('budgets', budgets);
-  renderBudget();
+  refreshDataViews();
 
   if (toAdd < needed) {
     alertModal(`Gedeeltelijk aangevuld — ${fmt(needed - toAdd)} tekort om het budget volledig te bereiken.`);
@@ -1390,7 +1409,7 @@ async function deleteTxnInline(txnId) {
   pushUndo();
   transactions = transactions.filter(t => t.id !== txnId);
   S.set('transactions', transactions);
-  render();
+  refreshDataViews();
   toast('Transactie verwijderd.');
 }
 
@@ -1446,6 +1465,6 @@ function sortCats(mode) {
   });
 
   S.set('groups', groups);
-  renderBudget();
-  toast('Categorieën gesorteerd.');
+  refreshDataViews();
+  toast('Potjes gesorteerd.');
 }
