@@ -1,0 +1,45 @@
+{
+  "name": "keeep-desktop",
+  "version": "1.0.0",
+  "description": "Keeep desktop app met lokale WiFi sync",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build:mac": "electron-builder --mac",
+    "build:win": "electron-builder --win",
+    "server": "node server.js",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build"
+  },
+  "build": {
+    "appId": "nl.keeep.app",
+    "productName": "Keeep",
+    "copyright": "Keeep",
+    "files": [
+      "main.js",
+      "server.js",
+      "app/**/*"
+    ],
+    "mac": {
+      "category": "public.app-category.finance",
+      "target": [{ "target": "dmg", "arch": ["arm64", "x64"] }],
+      "icon": "build/icon.icns"
+    },
+    "win": {
+      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "icon": "build/icon.ico"
+    },
+    "dmg": {
+      "title": "Keeep installeren",
+      "contents": [
+        { "x": 130, "y": 220, "type": "file" },
+        { "x": 410, "y": 220, "type": "link", "path": "/Applications" }
+      ]
+    }
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.0.0",
+    "electron": "^29.0.0",
+    "electron-builder": "^24.0.0"
+  }
+}

@@ -1,0 +1,10 @@
+{
+    "name": "Keeep",
+    "short_name": "Keeep",
+    "description": "Budget like you mean it",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#12131a",
+    "theme_color": "#12131a",
+    "icons": []
+  }

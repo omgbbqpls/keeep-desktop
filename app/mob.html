@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Keeep — Mobiel</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="css/keeep.css?v=81">
+  <link rel="stylesheet" href="css/mobile.css?v=14">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0d0f14">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Keeep">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+</head>
+<body class="mobile-entry">
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
+
+<div class="shell">
+
+  <!-- ── SIDEBAR ── -->
+  <aside class="sidebar">
+    <div class="sb-logo">
+      <div class="sb-logo-title">Kee<span>ep</span></div>
+      <div class="sb-logo-tagline" id="sb-budget-owner">Geef je geld een plan.</div>
+      <div class="sb-logo-meta">
+        <div class="sb-logo-server" aria-hidden="true">
+          <span id="server-dot" style="width:7px;height:7px;border-radius:50%;background:var(--red);display:inline-block;"></span>
+          <span id="server-label">offline</span>
+        </div>
+      </div>
+    </div>
+
+    <nav class="sb-nav">
+      <div class="sb-sec">Overzicht</div>
+      <button class="nb active" id="nav-budget" onclick="showPage('budget')">
+        <span class="nb-left">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+          Budget
+        </span>
+      </button>
+      <button class="nb" id="nav-transactions" onclick="navToAllTransactions()">
+        <span class="nb-left">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="3" cy="6" r="1"/><circle cx="3" cy="12" r="1"/><circle cx="3" cy="18" r="1"/></svg>
+          Transacties
+        </span>
+      </button>
+      <button class="nb" id="nav-insights" onclick="showPage('insights')">
+        <span class="nb-left">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          Inzichten
+        </span>
+      </button>
+
+      <div class="sb-divider"></div>
+      <div class="sb-sec">Rekeningen</div>
+      <div id="nav-accounts-list"></div>
+      <div class="sb-divider"></div>
+      <button class="nb" onclick="openAccModal()">
+        <span class="nb-left">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Rekening toevoegen
+        </span>
+      </button>
+
+      <div class="sb-divider"></div>
+      <div class="sb-nw-row">
+        <span class="sb-sec">Netto Vermogen</span>
+        <span class="sb-nw-val zero" id="networth-val">€0,00</span>
+      </div>
+    </nav>
+
+    <div class="sb-footer">
+      <button class="settings-btn" title="Instellingen" onclick="openModal('modal-settings')">⚙ <span>Instellingen</span></button>
+      <div style="display:flex;gap:6px;margin-bottom:6px;">
+        <button class="sb-action-btn" onclick="exportBackup()">↓ Back-up</button>
+        <label class="sb-action-btn" style="cursor:pointer;">
+          ↑ Importeer
+          <input type="file" accept=".json" style="display:none"
+            onchange="importBackup(this.files[0])">
+        </label>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── MAIN CONTENT ── -->
+  <main class="content">
+
+    <!-- Persistente stats-balk (zichtbaar op alle pagina's) -->
+    <!-- hidden: render.js heeft mt-available nog nodig voor sidebar NTV -->
+    <span id="mt-available-label" style="display:none"></span>
+    <span id="mt-available" style="display:none">€0,00</span>
+    <span id="mt-available-note" style="display:none"></span>
+
+    <div class="mobile-app-logo" aria-label="Keeep">Kee<span>ep</span></div>
+
+    <div class="month-totals app-topbar">
+      <div class="app-topbar-main">
+        <div class="app-page-title-wrap">
+          <button class="mob-menu-btn" onclick="toggleSidebar()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+          <h2 id="app-page-title">Budget</h2>
+        </div>
+        <div class="month-nav">
+          <button onclick="prevMonth()">‹</button>
+          <span class="month-title" id="month-title">Mei 2026</span>
+          <button onclick="nextMonth()">›</button>
+        </div>
+      </div>
+      <div class="ahead-panel" id="ahead-panel">
+        <div class="ahead-toggle">
+          <button class="ahead-toggle-main" onclick="toggleAheadPanel()" type="button" aria-expanded="true">
+            <span class="ahead-toggle-left">
+              <span class="ahead-chevron" id="ahead-chevron">▼</span>
+              <span class="ahead-title">Inkomen vooruit plannen</span>
+            </span>
+          </button>
+        </div>
+        <div class="ahead-strip" id="ahead-strip"></div>
+      </div>
+    </div>
+
+    <section class="mobile-companion" id="mobile-companion"></section>
+
+    <!-- Budget pagina -->
+    <div class="page active" id="page-budget">
+      <!-- Overschreden-banner -->
+      <div class="budget-overspend-banner" id="budget-overspend-banner" style="display:none">
+        <div class="budget-overspend-left">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="13"/><circle cx="12" cy="16.5" r=".8" fill="currentColor" stroke="none"/></svg>
+          <div>
+            <span class="budget-overspend-title">Budget staat <span id="budget-overspend-amount"></span> rood</span>
+            <span class="budget-overspend-sub"> · Je hebt meer verdeeld dan beschikbaar is</span>
+          </div>
+        </div>
+        <button class="budget-overspend-btn" onclick="openFixOverspendModal()">Herstel overschrijding →</button>
+      </div>
+
+      <!-- Filter + zoek balk -->
+      <!-- Budget actie topbalk -->
+      <div class="budget-action-bar">
+        <button class="bab-btn bab-primary" onclick="addGroup()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Groep
+        </button>
+        <button class="bab-btn bab-fill" onclick="fillAllGoals()" title="Vul alle budgetten aan vanuit klaar om toe te wijzen">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 3v18"/><path d="M5 10l7-7 7 7"/><path d="M5 21h14"/></svg>
+          Vul alle potjes
+        </button>
+        <div class="bab-divider"></div>
+        <button class="bab-btn" id="btn-undo" data-undo-btn onclick="undoLastAction()" disabled title="Ongedaan maken">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v6h6"/><path d="M3 13C5 8 9.5 5 15 5a9 9 0 0 1 0 18c-4 0-7.5-2-9-5"/></svg>
+          Ongedaan
+        </button>
+        <button class="bab-btn" id="btn-redo" data-redo-btn onclick="redoLastAction()" disabled title="Opnieuw">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 7v6h-6"/><path d="M21 13c-2 5-6.5 8-12 8a9 9 0 0 1 0-18c4 0 7.5 2 9 5"/></svg>
+          Opnieuw
+        </button>
+        <div class="bab-divider"></div>
+        <div class="bab-filters">
+          <button class="bfilter active" onclick="setBudgetFilter('all', this)">Alles</button>
+          <button class="bfilter" onclick="setBudgetFilter('underfunded', this)">Te weinig</button>
+          <button class="bfilter" onclick="setBudgetFilter('overspent', this)">Overschreden</button>
+          <button class="bfilter" onclick="setBudgetFilter('funded', this)">Klaar</button>
+        </div>
+        <div class="bab-spacer"></div>
+        <div class="budget-search-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="search" id="budget-search" placeholder="Zoek categorie…" oninput="renderBudget()">
+        </div>
+      </div>
+
+      <!-- Budget tabel + detail paneel -->
+      <div class="budget-workspace">
+        <div class="budget-table">
+          <div class="budget-table-header">
+            <div id="th-cat"><button class="budget-master-toggle" type="button" onclick="toggleAllGroups()" title="Alles open/dicht"><span id="budget-master-chevron">▼</span><span>Categorie</span></button></div>
+            <div id="th-available">Budget</div>
+            <div id="th-activity">Betaald</div>
+            <div id="th-assigned">Balans</div>
+          </div>
+          <div id="budget-body"></div>
+        </div>
+
+        <!-- Detail paneel rechts (YNAB-stijl) -->
+        <div class="cat-detail-panel" id="cat-detail-panel">
+          <div class="cdp-empty" id="cdp-empty">
+            <div class="cdp-empty-icon">←</div>
+            <div class="cdp-empty-label">Klik op een categorie voor details</div>
+          </div>
+          <div class="cdp-content" id="cdp-content" style="display:none">
+            <div class="cdp-header">
+              <div class="cdp-title-wrap">
+                <span class="cdp-name" id="cdp-name"></span>
+                <button class="cdp-icon-action" onclick="cdpRename()" title="Bewerken" aria-label="Bewerken">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                </button>
+                <button class="cdp-icon-action cdp-icon-action-danger" onclick="cdpDelete()" title="Verwijderen" aria-label="Verwijderen">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                </button>
+              </div>
+              <button class="cdp-close" onclick="closeCatDetail()">✕</button>
+            </div>
+            <div class="cdp-section cdp-summary-section">
+              <div class="cdp-balance-head">
+                <span class="cdp-balance-title">Balans</span>
+                <span class="cdp-val" id="cdp-available"></span>
+              </div>
+              <div class="cdp-row">
+                <span class="cdp-lbl">Over van vorige maand</span>
+                <span class="cdp-val" id="cdp-cash-leftover"></span>
+              </div>
+              <div class="cdp-row">
+                <span class="cdp-lbl">Budget deze maand</span>
+                <span class="cdp-val" id="cdp-budgeted"></span>
+              </div>
+              <div class="cdp-row">
+                <span class="cdp-lbl">Betaald uit eigen geld</span>
+                <span class="cdp-val" id="cdp-cash-spent"></span>
+              </div>
+              <div class="cdp-row">
+                <span class="cdp-lbl">Betaald op krediet</span>
+                <span class="cdp-val" id="cdp-credit-spent"></span>
+              </div>
+              <div class="cdp-overspend-warning" id="cdp-overspend-warning" style="display:none">
+                <div class="cdp-overspend-text" id="cdp-overspend-text"></div>
+                <button class="cdp-overspend-btn" onclick="cdpCoverOverspending()" type="button">Tekort dekken</button>
+              </div>
+            </div>
+            <!-- ── DOEL (inklapbaar) ─────────────────────────────── -->
+            <div class="cdp-section cdp-collapsible" id="cdp-goal-section" style="display:none">
+              <button class="cdp-collapse-header" onclick="cdpToggleSection('goal')" type="button">
+                <span class="cdp-collapse-left">
+                  <svg class="cdp-collapse-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                  <span class="cdp-collapse-icon">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="9 12 11 14 15 10"/></svg>
+                  </span>
+                  <span class="cdp-collapse-title">Benodigd budget</span>
+                </span>
+              </button>
+              <div class="cdp-collapse-body" id="cdp-goal-body">
+                <!-- Heeft een budget -->
+                <div id="cdp-goal-progress">
+                  <div class="cdp-goal-headline" id="cdp-goal-headline"></div>
+                  <div class="cdp-goal-deadline" id="cdp-goal-deadline"></div>
+
+                  <!-- Budget bereikt: check + badge -->
+                  <div class="cdp-goal-reached" id="cdp-goal-reached" style="display:none">
+                    <div class="cdp-goal-check">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="8 12 11 15 16 9"/></svg>
+                    </div>
+                    <div class="cdp-goal-reached-badge">Je hebt je budget bereikt!</div>
+                  </div>
+
+                  <!-- Voortgangsbalk: alleen tonen als budget niet behaald -->
+                  <div class="cdp-progress-wrap" id="cdp-progress-wrap">
+                    <div class="cdp-progress-bar" id="cdp-progress-bar"></div>
+                  </div>
+
+                  <!-- Bedragen rijen -->
+                  <div class="cdp-goal-rows">
+                    <div class="cdp-row">
+                      <span class="cdp-lbl-strong">Nodig deze maand</span>
+                      <span class="cdp-val" id="cdp-goal-need"></span>
+                    </div>
+                    <div class="cdp-row">
+                      <span class="cdp-lbl-strong">Budget</span>
+                      <span class="cdp-val" id="cdp-goal-funded"></span>
+                    </div>
+                    <div class="cdp-goal-divider"></div>
+                    <div class="cdp-row">
+                      <span class="cdp-lbl-strong">Te gaan</span>
+                      <span class="cdp-val" id="cdp-goal-togo"></span>
+                    </div>
+                  </div>
+
+                  <!-- Actieknoppen -->
+                  <div class="cdp-goal-actions">
+                    <div id="cdp-aanvul-input" style="display:none">
+                      <div style="display:flex;gap:6px;align-items:center;">
+                        <button class="cdp-btn-primary" style="flex:1;" onclick="cdpAanvul()">⚡ Volledig aanvullen</button>
+                      </div>
+                    </div>
+                    <button class="cdp-btn-edit-goal" onclick="cdpSetGoal()" type="button">Budget aanpassen</button>
+                  </div>
+                </div>
+
+                <!-- Geen budget -->
+                <div class="cdp-goal-empty" id="cdp-goal-empty"></div>
+                <div class="cdp-goal-actions" id="cdp-goal-empty-actions" style="display:none">
+                  <button class="cdp-btn-secondary" onclick="cdpSetGoal()">🎯 Budget instellen</button>
+                </div>
+              </div>
+            </div>
+            <div class="cdp-section cdp-transactions-section">
+              <div class="cdp-section-title">Transacties deze maand</div>
+              <div id="cdp-txn-list"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Transacties pagina -->
+    <div class="page" id="page-transactions">
+      <div class="page-header">
+        <h2 id="hdr-all-txn">Transacties</h2>
+        <div class="txn-view-wrapper" id="txn-view-wrapper">
+          <button class="txn-today-filter txn-view-btn" id="txn-view-btn" onclick="toggleTxnViewPanel()" type="button">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <span id="txn-view-btn-label">Weergave</span>
+            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="txn-view-panel" id="txn-view-panel" style="display:none;">
+            <div class="txn-view-panel-title">Weergave opties</div>
+            <div class="txn-view-presets">
+              <button class="txn-view-preset active" data-preset="all"      onclick="setTxnViewPreset('all')">Alle datums</button>
+              <button class="txn-view-preset"        data-preset="today"    onclick="setTxnViewPreset('today')">Vandaag</button>
+              <button class="txn-view-preset"        data-preset="month"    onclick="setTxnViewPreset('month')">Deze maand</button>
+              <button class="txn-view-preset"        data-preset="3months"  onclick="setTxnViewPreset('3months')">Laatste 3 maanden</button>
+              <button class="txn-view-preset"        data-preset="year"     onclick="setTxnViewPreset('year')">Dit jaar</button>
+              <button class="txn-view-preset"        data-preset="lastyear" onclick="setTxnViewPreset('lastyear')">Vorig jaar</button>
+            </div>
+            <div class="txn-view-divider"></div>
+            <div class="txn-view-custom">
+              <label>Van</label>
+              <input type="date" id="txn-view-from" oninput="setTxnViewCustom()">
+              <label>t/m</label>
+              <input type="date" id="txn-view-to" oninput="setTxnViewCustom()">
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="txn-filters">
+        <input type="search" id="txn-search" placeholder="Zoeken…" oninput="renderTransactions()">
+        <select id="txn-facc" onchange="renderTransactions()">
+          <option value="">Alle rekeningen</option>
+        </select>
+        <select id="txn-fcat" onchange="renderTransactions()">
+          <option value="">Alle categorieën</option>
+          <option value="__uncat__">⚠ Ongecategoriseerd</option>
+        </select>
+      </div>
+      <div class="txn-table-wrap">
+        <table class="txn-table">
+          <thead>
+            <tr>
+              <th class="txn-cb-cell"><input type="checkbox" id="txn-cb-all" title="Alles selecteren" onchange="toggleAllTxnCb(this)"></th>
+              <th id="th-date"><button class="txn-sort-btn" onclick="setTxnSort('date')">Datum <span data-sort-indicator="date"></span></button></th>
+              <th id="th-acc"><button class="txn-sort-btn" onclick="setTxnSort('account')">Rekening <span data-sort-indicator="account"></span></button></th>
+              <th id="th-payee"><button class="txn-sort-btn" onclick="setTxnSort('payee')">Omschrijving <span data-sort-indicator="payee"></span></button></th>
+              <th id="th-catcol"><button class="txn-sort-btn" onclick="setTxnSort('category')">Categorie <span data-sort-indicator="category"></span></button></th>
+              <th id="th-memo"><button class="txn-sort-btn" onclick="setTxnSort('memo')">Notitie <span data-sort-indicator="memo"></span></button></th>
+              <th id="th-outflow"><button class="txn-sort-btn" onclick="setTxnSort('outflow')">Uitgaand <span data-sort-indicator="outflow"></span></button></th>
+              <th id="th-inflow"><button class="txn-sort-btn" onclick="setTxnSort('inflow')">Inkomend <span data-sort-indicator="inflow"></span></button></th>
+              <th class="txn-del-cell"></th>
+            </tr>
+          </thead>
+          <tbody id="txn-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Rekeningen pagina -->
+    <div class="page" id="page-accounts">
+      <div class="page-header">
+        <h2>Rekeningen</h2>
+        <div style="display:flex;gap:8px;">
+          <button class="btn-primary" onclick="openAccModal()">+ Rekening</button>
+        </div>
+      </div>
+      <div id="accounts-list" class="accounts-grid"></div>
+    </div>
+
+    <!-- Inzichten pagina -->
+    <div class="page" id="page-insights">
+      <div class="page-header">
+        <h2>Inzichten</h2>
+      </div>
+      <div class="insights-grid" id="insights-grid"></div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ── MODALS ── -->
+
+<!-- Transactie -->
+<div class="modal-overlay" id="modal-txn">
+  <div class="modal">
+    <div class="modal-header">
+      <span id="modal-txn-title">Transactie</span>
+      <button class="modal-close" onclick="closeModal('modal-txn')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <label>Datum</label>
+        <input type="date" id="txn-date">
+      </div>
+      <div class="form-row">
+        <label>Rekening</label>
+        <select id="txn-acc" onchange="onTxnAccChange()"></select>
+      </div>
+      <div class="form-row">
+        <label>Categorie</label>
+        <select id="txn-cat" onchange="onTxnCatChange()"></select>
+      </div>
+      <div class="form-row">
+        <label>Omschrijving</label>
+        <input type="text" id="txn-payee" placeholder="Bijv. Albert Heijn" oninput="onTxnPayeeInput()">
+      </div>
+      <div class="form-row">
+        <label>Bedrag</label>
+        <input type="text" id="txn-amount" placeholder="0,00" inputmode="decimal" pattern="[0-9]*[,.]?[0-9]*">
+      </div>
+      <div class="form-row">
+        <label>Notitie</label>
+        <input type="text" id="txn-memo" placeholder="Optioneel">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-danger" id="btn-delete-txn" onclick="deleteTxn()">Verwijderen</button>
+      <div style="display:flex;gap:8px;">
+        <button class="btn-secondary" onclick="closeModal('modal-txn')">Annuleren</button>
+        <button class="btn-primary" onclick="saveTxn()">Opslaan</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Categorie bewerken -->
+<div class="modal-overlay" id="modal-cat-edit">
+  <div class="modal modal-cat-edit">
+    <div class="modal-header">
+      <span>Categorie bewerken</span>
+      <button class="modal-close" onclick="closeModal('modal-cat-edit')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <label>Naam</label>
+        <input type="text" id="cat-edit-name" placeholder="Bijv. Boodschappen">
+      </div>
+      <label class="cat-edit-subscription-row">
+        <input type="checkbox" id="cat-edit-subscription">
+        <span>
+          <strong>Abonnement</strong>
+          <em>Toon deze categorie als terugkerende vaste betaling.</em>
+        </span>
+      </label>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('modal-cat-edit')">Annuleren</button>
+      <button class="btn-primary" onclick="saveCatEdit()">Opslaan</button>
+    </div>
+  </div>
+</div>
+
+<!-- Rekening -->
+<div class="modal-overlay" id="modal-acc">
+  <div class="modal">
+    <div class="modal-header">
+      <span>Rekening toevoegen</span>
+      <button class="modal-close" onclick="closeModal('modal-acc')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <label>Naam</label>
+        <input type="text" id="acc-name" placeholder="Bijv. Rabobank">
+      </div>
+      <div class="form-row">
+        <label>Type</label>
+        <select id="acc-type" onchange="onAccTypeChange()">
+          <optgroup label="Binnen budget">
+            <option value="checking">Betaalrekening</option>
+            <option value="cash">Contant</option>
+            <option value="credit">Creditcard</option>
+            <option value="savings">Spaarrekening</option>
+          </optgroup>
+          <optgroup label="Buiten budget">
+            <option value="car">Auto</option>
+            <option value="investment">Beleggingen</option>
+            <option value="other_asset">Overig bezit</option>
+            <option value="property">Woning</option>
+          </optgroup>
+          <optgroup label="Schulden">
+            <option value="auto_loan">Autolening</option>
+            <option value="mortgage">Hypotheek</option>
+            <option value="student_loan">Studieschuld</option>
+            <option value="other_debt">Andere schuld</option>
+          </optgroup>
+        </select>
+      </div>
+      <div class="form-row">
+        <label>Saldo</label>
+        <input type="text" id="acc-balance" placeholder="0,00">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('modal-acc')">Annuleren</button>
+      <button class="btn-primary" onclick="saveAcc()">Toevoegen</button>
+    </div>
+  </div>
+</div>
+
+<!-- Geld verplaatsen -->
+<div class="modal-overlay" id="modal-move">
+  <div class="modal">
+    <div class="modal-header">
+      <span id="modal-move-title">Geld verplaatsen</span>
+      <button class="modal-close" onclick="closeModal('modal-move')">✕</button>
+    </div>
+    <div class="modal-body">
+      <!-- Categorie-modus -->
+      <div id="move-cat-fields">
+        <div class="form-row move-from-select-row">
+          <label>Van</label>
+          <select id="move-from" onchange="renderMoveFundingOptions()"></select>
+        </div>
+        <div class="move-source-panel" id="move-source-panel" style="display:none">
+          <div class="move-source-head">
+            <span>Potjes met ruimte</span>
+            <span id="move-source-needed"></span>
+          </div>
+          <div class="move-source-list" id="move-source-list"></div>
+        </div>
+        <div class="form-row">
+          <label>Naar</label>
+          <select id="move-to" onchange="renderMoveFundingOptions()"></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <label>Bedrag</label>
+        <input type="text" id="move-amount" placeholder="0,00" oninput="renderMoveFundingOptions()">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('modal-move')">Annuleren</button>
+      <button class="btn-primary" onclick="doMove()">Verplaatsen</button>
+    </div>
+  </div>
+</div>
+
+<!-- CSV Import -->
+<div class="modal-overlay" id="modal-csv">
+  <div class="modal modal-wide">
+    <div class="modal-header">
+      <span id="modal-csv-title">Bankafschrift importeren</span>
+      <button class="modal-close" onclick="closeModal('modal-csv')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <label>Rekening</label>
+        <select id="csv-acc"></select>
+      </div>
+      <div class="form-row">
+        <label>CSV bestand</label>
+        <input type="file" id="csv-file" accept=".csv"
+          onchange="handleCsvUpload(this.files[0])">
+      </div>
+      <div id="csv-preview"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('modal-csv')">Annuleren</button>
+      <button class="btn-primary" onclick="doImportCsv()">Importeren</button>
+    </div>
+  </div>
+</div>
+
+<!-- Instellingen -->
+<div class="modal-overlay" id="modal-settings">
+  <div class="modal settings-modal">
+    <div class="modal-header">
+      <span>Instellingen</span>
+      <button class="modal-close" onclick="closeModal('modal-settings')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="settings-theme-row">
+        <label>Thema</label>
+        <div class="settings-theme-toggle">
+          <button class="btn-secondary" id="theme-dark"  onclick="setTheme('dark')">Donker</button>
+          <button class="btn-secondary" id="theme-light" onclick="setTheme('light')">Licht</button>
+        </div>
+      </div>
+      <div class="settings-section-title">Gegevens</div>
+      <div class="settings-reset-card">
+        <div class="settings-reset-info">
+          <div class="settings-reset-label">Nieuw budget aanmaken</div>
+          <div class="settings-reset-desc">Maakt een nieuw budget met dezelfde inhoud als Standaard herstellen. Wijzigingen worden automatisch opgeslagen.</div>
+        </div>
+        <button class="btn-primary" onclick="createNewBudget()">Nieuw budget</button>
+      </div>
+      <div class="settings-reset-card">
+        <div class="settings-reset-info">
+          <div class="settings-reset-label">Back-up</div>
+          <div class="settings-reset-desc">Bewaar een kopie van je budget of importeer een eerder gemaakte back-up.</div>
+        </div>
+        <div class="settings-card-actions">
+          <button class="btn-secondary" onclick="exportBackup()">Back-up maken</button>
+          <label class="btn-secondary">
+            Back-up importeren
+            <input type="file" accept=".json" style="display:none" onchange="importBackup(this.files[0]);this.value=''">
+          </label>
+        </div>
+      </div>
+      <div class="settings-reset-card">
+        <div class="settings-reset-info">
+          <div class="settings-reset-label">Budget resetten</div>
+          <div class="settings-reset-desc">Wist alle budgettoewijzingen en budgetinstellingen. Rekeningen en transacties blijven bewaard.</div>
+        </div>
+        <button class="btn-secondary" onclick="resetBudgets()">Reset budget</button>
+      </div>
+      <div class="settings-reset-card settings-reset-card--danger">
+        <div class="settings-reset-info">
+          <div class="settings-reset-label">Standaard instellingen herstellen</div>
+          <div class="settings-reset-desc">Wist alle rekeningen, transacties en budgetten en zet het standaardbudget terug. Kan niet ongedaan worden gemaakt.</div>
+        </div>
+        <button class="btn-danger" onclick="resetAll()">Standaard herstellen</button>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-primary" onclick="closeModal('modal-settings')">Sluiten</button>
+    </div>
+  </div>
+</div>
+
+<!-- Standaardbudget samenstellen -->
+<div class="modal-overlay" id="modal-standard-restore">
+  <div class="modal modal-standard-restore">
+    <div class="modal-header">
+      <span id="standard-restore-title">Standaard herstellen</span>
+      <button class="modal-close" onclick="closeModal('modal-standard-restore')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="standard-restore-intro" id="standard-restore-intro">Kies welke standaardcategorieën je wilt terugzetten.</p>
+      <div class="standard-restore-actions">
+        <button class="btn-secondary" onclick="setStandardRestoreSelection(true)" type="button">Alles kiezen</button>
+        <button class="btn-secondary" onclick="setStandardRestoreSelection(false)" type="button">Alles uit</button>
+      </div>
+      <div class="standard-choice-wrap" id="standard-restore-options"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('modal-standard-restore')">Annuleren</button>
+      <button class="btn-danger" id="standard-restore-confirm" onclick="confirmStandardRestore()">Herstellen</button>
+    </div>
+  </div>
+</div>
+
+<!-- Budget instellen -->
+<div class="modal-overlay" id="modal-goal">
+  <div class="modal modal-goal">
+    <div class="modal-header modal-goal-header">
+      <span class="modal-goal-title-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="9 12 11 14 15 10"/></svg>
+      </span>
+      <span id="modal-goal-title">Budget</span>
+      <button class="modal-close" onclick="closeModal('modal-goal')">✕</button>
+    </div>
+    <div class="modal-body modal-goal-body">
+      <!-- Tabs -->
+      <div class="goal-tabs" role="tablist">
+        <button type="button" class="goal-tab" data-tab="weekly"  onclick="goalSwitchTab('weekly')">Wekelijks</button>
+        <button type="button" class="goal-tab active" data-tab="monthly" onclick="goalSwitchTab('monthly')">Maandelijks</button>
+        <button type="button" class="goal-tab" data-tab="yearly"  onclick="goalSwitchTab('yearly')">Jaarlijks</button>
+        <button type="button" class="goal-tab" data-tab="custom"  onclick="goalSwitchTab('custom')">Aangepast</button>
+      </div>
+
+      <!-- Gemeenschappelijk: Bedrag -->
+      <div class="goal-field">
+        <label class="goal-label" id="goal-amount-label">Ik heb nodig</label>
+        <input type="text" id="goal-amount" class="goal-input" placeholder="€0,00" inputmode="decimal">
+      </div>
+
+      <!-- Tab-specifieke velden -->
+      <!-- Wekelijks -->
+      <div class="goal-pane" data-pane="weekly" style="display:none">
+        <div class="goal-field">
+          <label class="goal-label">Elke</label>
+          <select id="goal-weekday" class="goal-input">
+            <option value="1">Maandag</option>
+            <option value="2">Dinsdag</option>
+            <option value="3">Woensdag</option>
+            <option value="4">Donderdag</option>
+            <option value="5">Vrijdag</option>
+            <option value="6" selected>Zaterdag</option>
+            <option value="0">Zondag</option>
+          </select>
+        </div>
+        <div class="goal-field">
+          <label class="goal-label">Volgende maand wil ik</label>
+          <select id="goal-weekly-next" class="goal-input">
+            <option value="refill">Aanvullen tot het bedrag/week</option>
+            <option value="set">Het bedrag per week opnieuw toewijzen</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Maandelijks -->
+      <div class="goal-pane" data-pane="monthly">
+        <div class="goal-field">
+          <label class="goal-label">Voor</label>
+          <select id="goal-monthday" class="goal-input">
+            <option value="last" selected>Laatste dag van de maand</option>
+            <option value="1">De 1e</option>
+            <option value="5">De 5e</option>
+            <option value="10">De 10e</option>
+            <option value="15">De 15e</option>
+            <option value="20">De 20e</option>
+            <option value="25">De 25e</option>
+            <option value="28">De 28e</option>
+          </select>
+        </div>
+        <div class="goal-field">
+          <label class="goal-label">Volgende maand wil ik</label>
+          <select id="goal-monthly-next" class="goal-input">
+            <option value="refill">Aanvullen tot het bedrag</option>
+            <option value="set">Het bedrag opnieuw toewijzen</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Jaarlijks -->
+      <div class="goal-pane" data-pane="yearly" style="display:none">
+        <div class="goal-field">
+          <label class="goal-label">Voor</label>
+          <input type="date" id="goal-year-date" class="goal-input">
+        </div>
+        <div class="goal-field">
+          <label class="goal-label">Volgend jaar wil ik</label>
+          <select id="goal-yearly-next" class="goal-input">
+            <option value="refill">Aanvullen tot het bedrag</option>
+            <option value="set">Het bedrag opnieuw toewijzen</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Aangepast -->
+      <div class="goal-pane" data-pane="custom" style="display:none">
+        <div class="goal-field">
+          <label class="goal-label">Ik wil</label>
+          <select id="goal-custom-mode" class="goal-input">
+            <option value="fillup">Aanvullen tot het bedrag</option>
+            <option value="save">In totaal sparen tot het bedrag</option>
+          </select>
+        </div>
+        <div class="goal-field">
+          <label class="goal-label">Op</label>
+          <input type="date" id="goal-custom-date" class="goal-input">
+        </div>
+        <div class="goal-toggle-row">
+          <label class="goal-toggle">
+            <input type="checkbox" id="goal-custom-repeat" onchange="goalUpdateCustomRepeat()">
+            <span class="goal-toggle-slider"></span>
+          </label>
+          <span class="goal-toggle-label">Herhalen</span>
+        </div>
+        <div class="goal-field-row" id="goal-custom-repeat-row" style="display:none">
+          <div class="goal-field" style="flex:1">
+            <label class="goal-label">Elke</label>
+            <input type="number" id="goal-custom-repeat-n" class="goal-input" value="1" min="1">
+          </div>
+          <div class="goal-field" style="flex:1">
+            <label class="goal-label">&nbsp;</label>
+            <select id="goal-custom-repeat-unit" class="goal-input">
+              <option value="day">Dag</option>
+              <option value="week">Week</option>
+              <option value="month" selected>Maand</option>
+              <option value="year">Jaar</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer modal-goal-footer">
+      <button class="goal-btn-delete" onclick="deleteGoal()" type="button">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+        Verwijderen
+      </button>
+      <div style="display:flex;gap:14px;align-items:center;">
+        <button class="goal-btn-cancel" onclick="closeModal('modal-goal')" type="button">Annuleren</button>
+        <button class="goal-btn-save" onclick="saveGoal()" type="button">Budget opslaan</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Contextmenu -->
+<div id="ctx-menu" class="ctx-menu">
+  <button onclick="ctxSetGoal()">🎯 Budget instellen</button>
+  <button onclick="ctxRename()">✏️ Bewerken</button>
+  <button onclick="ctxDelete()">🗑 Verwijderen</button>
+</div>
+
+<!-- Inkomen -->
+<div class="modal-overlay" id="modal-income">
+  <div class="modal">
+    <div class="modal-header">
+      <span>+ Inkomen</span>
+      <button class="modal-close" onclick="closeModal('modal-income')">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <!-- Maand-toggle -->
+      <div class="form-row">
+        <label>Bedrag</label>
+        <input type="text" id="income-amount" placeholder="0,00" inputmode="decimal">
+      </div>
+      <div class="form-row">
+        <label>Rekening</label>
+        <select id="income-acc"></select>
+      </div>
+      <div class="form-row">
+        <label>Betaler</label>
+        <input type="text" id="income-payee" placeholder="Bijv. Werkgever">
+      </div>
+      <div class="form-row">
+        <label>Datum</label>
+        <input type="date" id="income-date">
+      </div>
+      <div class="form-row">
+        <label>Notitie</label>
+        <input type="text" id="income-memo" placeholder="Optioneel">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('modal-income')">Annuleren</button>
+      <button class="btn-primary" onclick="saveIncome()">Opslaan</button>
+    </div>
+  </div>
+</div>
+
+<!-- JS — volgorde is belangrijk -->
+<script src="js/dialog.js?v=13"></script>
+<script src="js/state.js?v=34"></script>
+<script src="js/format.js?v=12"></script>
+<script src="js/render.js?v=96"></script>
+<script src="js/modals.js?v=55"></script>
+<script src="js/app.js?v=50"></script>
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  }
+</script>
+  <nav class="mob-bottom-nav">
+    <a onclick="showPage('budget')" id="mob-nav-budget">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+      Vandaag
+    </a>
+    <a onclick="navToAllTransactions()" id="mob-nav-transactions">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="3" cy="6" r="1" fill="currentColor"/><circle cx="3" cy="12" r="1" fill="currentColor"/><circle cx="3" cy="18" r="1" fill="currentColor"/></svg>
+      Transacties
+    </a>
+    <a onclick="showPage('insights')" id="mob-nav-insights">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      Inzichten
+    </a>
+  </nav>
+  <button class="mob-fab" onclick="openTxnModal()"><span>+</span> Transactie</button>
+  <script>document.getElementById('mob-nav-budget')?.classList.add('active');</script>
+</body>
+</html>

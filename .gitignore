@@ -1,0 +1,25 @@
+.DS_Store
+node_modules/
+dist/
+build/
+
+# Rust/Tauri build output
+src-tauri/target/
+
+# Electron/Tauri artifacts
+*.dmg
+*.pkg
+*.exe
+*.msi
+*.AppImage
+
+.env
+.env.*
+!.env.example
+npm-debug.log*
+
+# Local Keeep data/backups should stay off GitHub.
+*.local.json
+backup/
+backups/
+app/BACKUP/
