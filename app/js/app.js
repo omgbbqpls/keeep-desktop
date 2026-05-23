@@ -624,16 +624,19 @@ function ensureThreeBudgetGroups() {
   const pickTarget = groupName => {
     const name = normalize(groupName);
     if (name.includes('inkomen'))             return null;
-    if (name.includes('creditcard betaling')) return null;
+    if (name.includes('creditcardbetaling') || name.includes('creditcard betaling')) return null;
     if (name.includes('schuld') || name.includes('herstel')) return 'Schulden';
     if (name.includes('vaste'))               return 'Vaste lasten';
     if (name.includes('nog te plaatsen') || name.includes('te categoriseren')) return 'Vrije ruimte';
     if (name.includes('voor later') || name.includes('spaar') || name.includes('doelen')) return 'Voor later';
     if (name.includes('vrije ruimte') || name.includes('wants') || name.includes('vrije tijd')) return 'Vrije ruimte';
     // Legacy groepen
+    if (name === 'needs' || name.includes('noodzakelijk')) return 'Vaste lasten';
+    if (name === 'wants' || name.includes('leuk & lekker')) return 'Vrije ruimte';
     if (name.includes('spaardoelen'))         return 'Voor later';
+    if (name.includes('abonnementen'))        return 'Vaste lasten';
     if (name.includes('dagelijks'))           return 'Dagelijks leven';
-    return 'Dagelijks leven';
+    return null;
   };
 
   const targetGroups = {};
@@ -681,6 +684,18 @@ function ensureThreeBudgetGroups() {
     });
   }
 
+  const standardGroups = [
+    incomeGrp,
+    ccGrp,
+    targetGroups['Vaste lasten'],
+    targetGroups['Dagelijks leven'],
+    targetGroups['Vrije ruimte'],
+    targetGroups['Voor later'],
+    targetGroups.Schulden?.cats.length ? targetGroups.Schulden : null,
+  ].filter(Boolean);
+  const standardGroupIds = new Set(standardGroups.map(group => group.id));
+  const preservedGroups = groups.filter(group => !standardGroupIds.has(group.id));
+
   groups = [
     ...(incomeGrp ? [incomeGrp] : []),
     ...(ccGrp     ? [ccGrp]     : []),
@@ -688,6 +703,7 @@ function ensureThreeBudgetGroups() {
     targetGroups['Dagelijks leven'],
     targetGroups['Vrije ruimte'],
     targetGroups['Voor later'],
+    ...preservedGroups,
     ...(targetGroups.Schulden?.cats.length ? [targetGroups.Schulden] : []),
   ].filter(Boolean);
 
