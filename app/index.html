@@ -171,7 +171,7 @@
           <div class="budget-table-header">
             <div id="th-cat"><button class="budget-master-toggle" type="button" onclick="toggleAllGroups()" title="Alles open/dicht"><span id="budget-master-chevron">▼</span><span>Potje</span></button></div>
             <div id="th-available">Budget</div>
-            <div id="th-activity">Betaald</div>
+            <div id="th-activity">Uitgegeven</div>
             <div id="th-assigned">Beschikbaar</div>
           </div>
           <div id="budget-body"></div>
@@ -214,11 +214,11 @@
                 <span class="cdp-val" id="cdp-budgeted"></span>
               </div>
               <div class="cdp-row">
-                <span class="cdp-lbl">Betaald uit eigen geld</span>
+                <span class="cdp-lbl" id="cdp-cash-spent-label">Uitgegeven van eigen geld</span>
                 <span class="cdp-val" id="cdp-cash-spent"></span>
               </div>
-              <div class="cdp-row">
-                <span class="cdp-lbl">Betaald op krediet</span>
+              <div class="cdp-row" id="cdp-credit-spent-row">
+                <span class="cdp-lbl">Uitgegeven op krediet</span>
                 <span class="cdp-val" id="cdp-credit-spent"></span>
               </div>
             </div>
@@ -274,17 +274,17 @@
                   <div class="cdp-goal-actions">
                     <div id="cdp-aanvul-input" style="display:none">
                       <div style="display:flex;gap:6px;align-items:center;">
-                        <button class="cdp-btn-primary" id="cdp-aanvul-btn" style="flex:1;" onclick="cdpAanvul()">⚡ Volledig aanvullen</button>
+                        <button class="cdp-btn-primary" id="cdp-aanvul-btn" style="flex:1;" onclick="cdpAanvul()">Volledig aanvullen</button>
                       </div>
                     </div>
-                    <button class="cdp-btn-edit-goal" id="cdp-goal-edit-btn" onclick="cdpSetGoal()" type="button">🎯 Automatisch aanvullen instellen</button>
+                    <button class="cdp-btn-edit-goal" id="cdp-goal-edit-btn" onclick="cdpSetGoal()" type="button">Automatisch aanvullen instellen</button>
                   </div>
                 </div>
 
                 <!-- Geen budget -->
                 <div class="cdp-goal-empty" id="cdp-goal-empty"></div>
                 <div class="cdp-goal-actions" id="cdp-goal-empty-actions" style="display:none">
-                  <button class="cdp-btn-secondary" onclick="cdpSetGoal()">🎯 Automatisch aanvullen instellen</button>
+                  <button class="cdp-btn-secondary" onclick="cdpSetGoal()">Automatisch aanvullen instellen</button>
                 </div>
               </div>
             </div>
@@ -809,7 +809,7 @@
 
 <!-- Contextmenu -->
 <div id="ctx-menu" class="ctx-menu">
-  <button onclick="ctxSetGoal()">🎯 Automatisch vullen instellen</button>
+  <button onclick="ctxSetGoal()">Automatisch vullen instellen</button>
   <button onclick="ctxRename()">✏️ Bewerken</button>
   <button onclick="ctxDelete()">🗑 Verwijderen</button>
 </div>
