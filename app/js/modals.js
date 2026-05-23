@@ -456,22 +456,12 @@ const GROUP_DEFAULT_EMOJI = {
 async function addCategory(grpId) {
   const grp = groups.find(g => g.id === grpId);
   if (!grp) return;
-  // Kies een emoji die nog niet gebruikt wordt in deze groep
-  const usedEmojis = grp.cats.map(c => [...c.name][0]).filter(Boolean);
-  const options = GROUP_DEFAULT_EMOJI[grp.name] || ['📌','🔹','▪️','🔸','▫️','🔺'];
-  const emoji = options.find(e => !usedEmojis.includes(e)) || options[0] || '📌';
-  const name = await kPrompt('Naam nieuw potje:', '', grp.name + ' — potje toevoegen');
-  if (!name?.trim()) return;
-  pushUndo();
-  grp.cats.push({ id: genId(), name: emoji + ' ' + name.trim() });
-  grp.cats.sort((a, b) => a.name.replace(/^[^\p{L}]+/u,'').localeCompare(b.name.replace(/^[^\p{L}]+/u,''),'nl'));
-  S.set('groups', groups);
-  refreshDataViews();
-  rebuildCatFilters();
+  openCatCreateModal(grpId);
 }
 
 // ── GELD VERPLAATSEN MODAL ────────────────────────────────────────────────
 let _moveMode = 'cat'; // 'cat' of 'acc'
+let _movePurpose = 'move';
 const MOVE_SOURCE_RTA = '__ready_to_assign__';
 
 function isProtectedMoveSourceGroup(groupName) {
@@ -492,11 +482,36 @@ function setMoveMode(mode) {
   document.getElementById('move-cat-fields').style.display = '';
   const sourcePanel = document.getElementById('move-source-panel');
   if (sourcePanel) sourcePanel.style.display = '';
-  document.getElementById('modal-move-title').textContent = 'Geld verplaatsen';
+  if (_movePurpose !== 'shortage') document.getElementById('modal-move-title').textContent = 'Geld verplaatsen';
   renderMoveFundingOptions();
 }
 
-function openMoveModal(fromCatId = null, startMode = null) {
+function setMovePurpose(purpose = 'move', details = {}) {
+  _movePurpose = purpose;
+  const titleEl = document.getElementById('modal-move-title');
+  const contextEl = document.getElementById('move-context-text');
+  const submitBtn = document.getElementById('move-submit-btn');
+  if (purpose === 'shortage') {
+    const catName = details.catName || 'dit potje';
+    const amount = details.amount || 0;
+    if (titleEl) titleEl.textContent = 'Tekort oplossen';
+    if (contextEl) {
+      contextEl.style.display = 'block';
+      contextEl.innerHTML = `Je komt <strong>${fmt(amount)}</strong> tekort in ${escapeHtml(catName)}. Kies uit welk potje je geld wilt verplaatsen.`;
+    }
+    if (submitBtn) submitBtn.textContent = `Verplaats ${fmt(amount)}`;
+  } else {
+    if (titleEl) titleEl.textContent = 'Geld verplaatsen';
+    if (contextEl) {
+      contextEl.style.display = 'none';
+      contextEl.textContent = '';
+    }
+    if (submitBtn) submitBtn.textContent = 'Verplaatsen';
+  }
+}
+
+function openMoveModal(fromCatId = null, startMode = null, options = {}) {
+  setMovePurpose(options.purpose || 'move', options);
   // Categorie-selects vullen
   const fromSel = document.getElementById('move-from');
   const toSel   = document.getElementById('move-to');
@@ -526,7 +541,7 @@ function openMoveModal(fromCatId = null, startMode = null) {
   });
   if (fromCatId) fromSel.value = fromCatId;
 
-  document.getElementById('move-amount').value      = '';
+  document.getElementById('move-amount').value = options.amount ? fmtInput(options.amount) : '';
 
   setMoveMode('cat');
 
@@ -546,6 +561,8 @@ function renderMoveFundingOptions() {
   const fromId = document.getElementById('move-from')?.value || '';
   const neededEl = document.getElementById('move-source-needed');
   if (neededEl) neededEl.textContent = amount > 0 ? `Nodig: ${fmt(amount)}` : '';
+  const submitBtn = document.getElementById('move-submit-btn');
+  if (submitBtn && _movePurpose === 'shortage') submitBtn.textContent = amount > 0 ? `Verplaats ${fmt(amount)}` : 'Verplaats tekort';
 
   list.innerHTML = '';
   let count = 0;
@@ -665,6 +682,7 @@ function doMove() {
   budgets[key] = bm;
   S.set('budgets', budgets);
   closeModal('modal-move');
+  setMovePurpose('move');
   if (typeof refreshBudgetSurfaces === 'function') refreshBudgetSurfaces();
   else {
     render();
@@ -767,21 +785,23 @@ let _goalTab   = 'monthly';
 
 // Map legacy types naar de nieuwe tab-set.
 function _mapLegacyGoalType(t) {
+  if (t === 'targetByDate') return 'custom';
+  if (t === 'manual') return 'manual';
   if (t === 'quarterly') return 'custom';   // wordt herhaald per 3 maanden
   if (t === 'target')    return 'custom';
-  if (t === 'weekly' || t === 'monthly' || t === 'yearly' || t === 'custom') return t;
+  if (t === 'weekly' || t === 'monthly' || t === 'yearly' || t === 'custom') return t === 'weekly' || t === 'yearly' ? 'monthly' : t;
   return 'monthly';
 }
 
 function openGoalModal(catId) {
   if (isIncomeCat(catId)) {
-    toast('Inkomen heeft geen budgetinstelling.');
+    toast('Inkomen wordt niet automatisch aangevuld.');
     return;
   }
   _goalCatId = catId;
   const cat  = findCat(catId);
   document.getElementById('modal-goal-title').textContent =
-    `Budget — ${cat?.name ?? catId}`;
+    `${cat?.name ?? catId}`;
 
   const existing = goals[catId] || {};
   const tab      = _mapLegacyGoalType(existing.type);
@@ -812,22 +832,23 @@ function openGoalModal(catId) {
   document.getElementById('goal-yearly-next').value = existing.next || 'refill';
 
   // Aangepast (custom)
-  const customMode = existing.mode || (existing.type === 'target' ? 'save' : 'fillup');
+  const customMode = existing.mode || (existing.type === 'target' || existing.type === 'targetByDate' ? 'save' : 'fillup');
   const customHasDate = !!(existing.targetDate || existing.date);
-  const isExistingCustom = existing.type === 'custom' || existing.type === 'target';
+  const isExistingCustom = existing.type === 'custom' || existing.type === 'target' || existing.type === 'targetByDate';
   document.getElementById('goal-custom-mode').value = customMode;
   document.getElementById('goal-custom-date').value =
-    existing.targetDate || existing.date || oneYear;
+    isExistingCustom ? (existing.targetDate || existing.date || '') : oneYear;
   const noDateEl = document.getElementById('goal-custom-no-date');
-  if (noDateEl) noDateEl.checked = isExistingCustom && customMode === 'save' && !customHasDate;
+  if (noDateEl) noDateEl.checked = !isExistingCustom || !!customHasDate;
   const repeatOn = existing.repeat === true ||
                    existing.type === 'quarterly' ||
                    (existing.type === 'custom' && existing.repeatN);
-  document.getElementById('goal-custom-repeat').checked = repeatOn;
-  document.getElementById('goal-custom-repeat-n').value =
-    existing.repeatN || (existing.type === 'quarterly' ? 3 : 1);
-  document.getElementById('goal-custom-repeat-unit').value =
-    existing.repeatUnit || 'month';
+  const repeatEl = document.getElementById('goal-custom-repeat');
+  if (repeatEl) repeatEl.checked = repeatOn;
+  const repeatNEl = document.getElementById('goal-custom-repeat-n');
+  if (repeatNEl) repeatNEl.value = existing.repeatN || (existing.type === 'quarterly' ? 3 : 1);
+  const repeatUnitEl = document.getElementById('goal-custom-repeat-unit');
+  if (repeatUnitEl) repeatUnitEl.value = existing.repeatUnit || 'month';
 
   goalUpdateCustomRepeat();
   goalUpdateCustomDate();
@@ -846,27 +867,45 @@ function goalSwitchTab(tab) {
   });
   // Pas hoofd-label aan
   const lbl = document.getElementById('goal-amount-label');
-  if (lbl) lbl.textContent = tab === 'custom' ? 'Bedrag' : 'Ik heb nodig';
+  if (lbl) lbl.textContent = tab === 'custom' ? 'Doelbedrag' : tab === 'manual' ? 'Bedrag' : 'Bedrag per maand';
+  const amountField = document.getElementById('goal-amount')?.closest('.goal-field');
+  if (amountField) amountField.style.display = tab === 'manual' ? 'none' : 'flex';
 }
 
 function goalUpdateCustomRepeat() {
-  const on = document.getElementById('goal-custom-repeat').checked;
-  document.getElementById('goal-custom-repeat-row').style.display = on ? 'flex' : 'none';
+  const on = !!document.getElementById('goal-custom-repeat')?.checked;
+  const row = document.getElementById('goal-custom-repeat-row');
+  if (row) row.style.display = on ? 'flex' : 'none';
 }
 
 function goalUpdateCustomDate() {
   const mode = document.getElementById('goal-custom-mode')?.value || 'fillup';
-  const noDate = !!document.getElementById('goal-custom-no-date')?.checked;
   const dateEl = document.getElementById('goal-custom-date');
   const dateLabel = document.getElementById('goal-custom-date-label');
-  if (dateLabel) dateLabel.textContent = mode === 'save' ? 'Voor' : 'Op';
+  const dateOn = document.getElementById('goal-custom-no-date')?.checked !== false;
+  if (dateLabel) dateLabel.textContent = mode === 'save' ? 'Doeldatum' : 'Op';
   if (dateEl) {
-    dateEl.disabled = noDate;
-    dateEl.style.opacity = noDate ? '.45' : '';
+    dateEl.disabled = !dateOn;
+    dateEl.style.opacity = dateOn ? '' : '.45';
+    if (!dateOn) dateEl.value = '';
   }
 }
 
 function saveGoal() {
+  const tab = _goalTab;
+  if (tab === 'manual') {
+    pushUndo();
+    goals[_goalCatId] = {
+      type: 'manual',
+      startMonth: monthKey(currentYear, currentMonth),
+    };
+    S.set('goals', goals);
+    closeModal('modal-goal');
+    refreshDataViews();
+    if (_cdpCatId === _goalCatId) refreshCatDetail();
+    return;
+  }
+
   const amount = parseBedrag(document.getElementById('goal-amount').value);
   if (amount <= 0) { toast('Vul een bedrag in.'); return; }
 
@@ -878,7 +917,6 @@ function saveGoal() {
     ? vandaag()
     : `${currentYear}-${String(currentMonth).padStart(2, '0')}-01`;
 
-  const tab = _goalTab;
   const goal = {
     type: tab,
     amount,
@@ -897,14 +935,9 @@ function saveGoal() {
     goal.targetDate = document.getElementById('goal-year-date').value || null;
     goal.next       = document.getElementById('goal-yearly-next').value;
   } else if (tab === 'custom') {
-    goal.mode       = document.getElementById('goal-custom-mode').value; // fillup | save
-    const noDate    = document.getElementById('goal-custom-no-date')?.checked;
-    goal.targetDate = noDate ? null : (document.getElementById('goal-custom-date').value || null);
-    goal.repeat     = document.getElementById('goal-custom-repeat').checked;
-    if (goal.repeat) {
-      goal.repeatN    = Math.max(1, parseInt(document.getElementById('goal-custom-repeat-n').value, 10) || 1);
-      goal.repeatUnit = document.getElementById('goal-custom-repeat-unit').value;
-    }
+    goal.type       = 'targetByDate';
+    const useDate = document.getElementById('goal-custom-no-date')?.checked !== false;
+    goal.targetDate = useDate ? (document.getElementById('goal-custom-date').value || null) : null;
   }
 
   pushUndo();
@@ -929,6 +962,8 @@ let _ctxCatId = null;
 let _ctxGrpId = null;
 let _editCatId = null;
 let _editCatGrpId = null;
+let _editCatMode = 'edit';
+let _editCatIconKey = '';
 
 function splitCategoryDisplayName(name) {
   const hasIcon = /^\p{Emoji}/u.test(name || '');
@@ -971,10 +1006,64 @@ async function inlineDeleteCat(catId, grpId) {
 function ctxSetGoal() {
   if (!_ctxCatId) return;
   if (isIncomeCat(_ctxCatId)) {
-    toast('Inkomen heeft geen budgetinstelling.');
+    toast('Inkomen wordt niet automatisch aangevuld.');
     return;
   }
   openGoalModal(_ctxCatId);
+}
+
+function defaultCategoryIconForGroup(grp) {
+  const fallback = typeof DEFAULT_CATEGORY_ICON_KEY !== 'undefined' ? DEFAULT_CATEGORY_ICON_KEY : 'wallet';
+  if (!grp) return fallback;
+  if (typeof GROUP_DEFAULT_ICON_KEY !== 'undefined' && GROUP_DEFAULT_ICON_KEY[grp.name]) {
+    return GROUP_DEFAULT_ICON_KEY[grp.name];
+  }
+  return fallback;
+}
+
+function renderCatIconPicker(selectedKey) {
+  const grid = document.getElementById('cat-edit-icon-grid');
+  const label = document.getElementById('cat-edit-icon-label');
+  if (!grid || typeof CATEGORY_SVG_ICONS === 'undefined') return;
+  const keys = typeof CATEGORY_ICON_KEYS !== 'undefined' ? CATEGORY_ICON_KEYS : Object.keys(CATEGORY_SVG_ICONS);
+  const nextSelected = selectedKey && CATEGORY_SVG_ICONS[selectedKey]
+    ? selectedKey
+    : (typeof DEFAULT_CATEGORY_ICON_KEY !== 'undefined' ? DEFAULT_CATEGORY_ICON_KEY : keys[0]);
+  _editCatIconKey = nextSelected;
+  if (label) label.textContent = CATEGORY_SVG_ICONS[nextSelected]?.label || '';
+  grid.innerHTML = keys.map(key => {
+    const icon = CATEGORY_SVG_ICONS[key];
+    return `
+      <button type="button" class="cat-icon-choice ${key === nextSelected ? 'active' : ''}" data-cat-icon="${key}" title="${icon.label}" aria-label="${icon.label}">
+        ${icon.svg}
+      </button>`;
+  }).join('');
+  grid.querySelectorAll('.cat-icon-choice').forEach(btn => {
+    btn.addEventListener('click', () => {
+      _editCatIconKey = btn.dataset.catIcon;
+      grid.querySelectorAll('.cat-icon-choice').forEach(item => item.classList.toggle('active', item === btn));
+      if (label) label.textContent = CATEGORY_SVG_ICONS[_editCatIconKey]?.label || '';
+    });
+  });
+}
+
+function openCatCreateModal(grpId) {
+  const grp = groups.find(g => g.id === grpId);
+  if (!grp || grp.name === 'Inkomen') return;
+  _editCatMode = 'new';
+  _editCatId = null;
+  _editCatGrpId = grpId;
+  const titleEl = document.getElementById('cat-edit-title');
+  const saveEl = document.getElementById('cat-edit-save');
+  const nameEl = document.getElementById('cat-edit-name');
+  const subEl = document.getElementById('cat-edit-subscription');
+  if (titleEl) titleEl.textContent = 'Nieuw potje';
+  if (saveEl) saveEl.textContent = 'Potje toevoegen';
+  if (nameEl) nameEl.value = '';
+  if (subEl) subEl.checked = false;
+  renderCatIconPicker(defaultCategoryIconForGroup(grp));
+  openModal('modal-cat-edit');
+  setTimeout(() => nameEl?.focus(), 40);
 }
 
 async function renameGroup(grpId) {
@@ -1005,46 +1094,59 @@ function openCatEditModal(catId, grpId) {
   }
   _editCatId = catId || _ctxCatId;
   _editCatGrpId = grpId || _ctxGrpId;
+  _editCatMode = 'edit';
   const parts = splitCategoryDisplayName(cat.name);
+  const titleEl = document.getElementById('cat-edit-title');
+  const saveEl = document.getElementById('cat-edit-save');
   const nameEl = document.getElementById('cat-edit-name');
   const subEl = document.getElementById('cat-edit-subscription');
+  if (titleEl) titleEl.textContent = 'Potje bewerken';
+  if (saveEl) saveEl.textContent = 'Opslaan';
   if (nameEl) nameEl.value = parts.label || cat.name;
   if (subEl) subEl.checked = !!categoryMeta?.[cat.id]?.isSubscription;
+  renderCatIconPicker(categoryMeta?.[cat.id]?.icon || defaultCategoryIconForGroup(groups.find(g => g.id === _editCatGrpId)));
   openModal('modal-cat-edit');
   setTimeout(() => nameEl?.focus(), 40);
 }
 
 function saveCatEdit() {
-  const cat = findCat(_editCatId);
-  if (!cat) return;
+  const isNew = _editCatMode === 'new';
+  const cat = isNew ? null : findCat(_editCatId);
+  if (!isNew && !cat) return;
+  const grp = groups.find(g => g.id === _editCatGrpId);
+  if (isNew && !grp) return;
   const nameEl = document.getElementById('cat-edit-name');
   const subEl = document.getElementById('cat-edit-subscription');
   const nextLabel = (nameEl?.value || '').trim();
   if (!nextLabel) { toast('Geef het potje een naam.'); return; }
 
-  const oldParts = splitCategoryDisplayName(cat.name);
-  const nextName = /^\p{Emoji}/u.test(nextLabel)
-    ? nextLabel
-    : `${oldParts.icon ? `${oldParts.icon} ` : ''}${nextLabel}`;
-
   pushUndo();
-  cat.name = nextName;
-  const nextMeta = { ...(categoryMeta[cat.id] || {}) };
+  const targetCat = isNew ? { id: genId(), name: nextLabel } : cat;
+  targetCat.name = nextLabel;
+  const nextMeta = { ...(categoryMeta[targetCat.id] || {}) };
+  if (_editCatIconKey && typeof CATEGORY_SVG_ICONS !== 'undefined' && CATEGORY_SVG_ICONS[_editCatIconKey]) {
+    nextMeta.icon = _editCatIconKey;
+  }
   if (subEl?.checked) {
     nextMeta.isSubscription = true;
-    categoryMeta[cat.id] = nextMeta;
   } else {
     delete nextMeta.isSubscription;
-    if (Object.keys(nextMeta).length) categoryMeta[cat.id] = nextMeta;
-    else delete categoryMeta[cat.id];
+  }
+  if (Object.keys(nextMeta).length) categoryMeta[targetCat.id] = nextMeta;
+  else delete categoryMeta[targetCat.id];
+  if (isNew) {
+    grp.cats.push(targetCat);
+    grp.cats.sort((a, b) => cleanBudgetLabel(a.name).localeCompare(cleanBudgetLabel(b.name), 'nl'));
   }
   S.set('groups', groups);
   S.set('categoryMeta', categoryMeta);
   closeModal('modal-cat-edit');
   refreshDataViews();
   rebuildCatFilters();
-  if (_cdpCatId === cat.id) openCatDetail(cat.id, _editCatGrpId);
-  toast(`Potje "${splitCategoryDisplayName(cat.name).label}" bijgewerkt.`);
+  if (!isNew && _cdpCatId === targetCat.id) openCatDetail(targetCat.id, _editCatGrpId);
+  toast(isNew
+    ? `Potje "${targetCat.name}" toegevoegd.`
+    : `Potje "${targetCat.name}" bijgewerkt.`);
 }
 
 async function deleteCategoryWithBudgetMove(catId, grpId) {
@@ -1273,7 +1375,9 @@ function showGrpCtxMenu(e, grpId) {
     menu = document.createElement('div');
     menu.id = 'grp-ctx-menu';
     menu.className = 'ctx-menu';
-    menu.innerHTML = `<button onclick="grpCtxRename()">✏️ Hernoemen</button>`;
+    menu.innerHTML = `
+      <button onclick="grpCtxRename()">✏️ Hernoemen</button>
+      <button onclick="grpCtxDelete()">🗑 Verwijderen</button>`;
     document.body.appendChild(menu);
   }
 
@@ -1293,11 +1397,79 @@ function grpCtxRename() {
   renameGroup(_ctxGrpMenuId);
 }
 
+function isProtectedGroupDelete(grp) {
+  const ccName = typeof _ccGrpName === 'function' ? _ccGrpName() : 'Creditcard betalingen';
+  return !grp || grp.name === 'Inkomen' || grp.name === 'Vooruit plannen' || grp.name === ccName;
+}
+
+function getFilledGroupCats(grp) {
+  if (!grp) return [];
+  return grp.cats.filter(cat => {
+    const catId = cat.id;
+    const hasVisibleValue =
+      Math.abs(calcCatBudgeted(catId)) > 0 ||
+      Math.abs(calcCatSpent(catId)) > 0 ||
+      Math.abs(calcCatAvailable(catId)) > 0;
+    const hasTransactions = transactions.some(tx => tx.catId === catId);
+    const hasBudgetHistory = Object.values(budgets || {}).some(monthBudget =>
+      Math.abs(Number(monthBudget?.[catId]) || 0) > 0
+    );
+    return hasVisibleValue || hasTransactions || hasBudgetHistory;
+  });
+}
+
+async function deleteGroupIfEmpty(grpId) {
+  const grp = groups.find(g => g.id === grpId);
+  if (!grp) return false;
+  if (isProtectedGroupDelete(grp)) {
+    toast('Deze hoofdcategorie kan niet verwijderd worden.');
+    return false;
+  }
+
+  const filledCats = getFilledGroupCats(grp);
+  if (filledCats.length) {
+    const names = filledCats.slice(0, 4).map(cat => `"${cleanBudgetLabel(cat.name)}"`).join(', ');
+    const more = filledCats.length > 4 ? ` en ${filledCats.length - 4} meer` : '';
+    await kAlert(
+      `Deze hoofdcategorie kan pas weg als alle potjes leeg zijn.\n\nMaak eerst leeg: ${names}${more}.`,
+      'Hoofdcategorie niet verwijderd'
+    );
+    return false;
+  }
+
+  const catCount = grp.cats.length;
+  if (!await kConfirm(
+    catCount
+      ? `Hoofdcategorie "${grp.name}" en ${catCount} lege potje${catCount === 1 ? '' : 's'} verwijderen?`
+      : `Hoofdcategorie "${grp.name}" verwijderen?`,
+    'Hoofdcategorie verwijderen',
+    true
+  )) return false;
+
+  pushUndo();
+  grp.cats.forEach(cat => {
+    Object.values(budgets || {}).forEach(monthBudget => {
+      if (monthBudget) delete monthBudget[cat.id];
+    });
+    delete goals[cat.id];
+    delete categoryMeta[cat.id];
+  });
+  groups = groups.filter(g => g.id !== grp.id);
+  delete grpState[grp.id];
+  localStorage.setItem('keeep_grpState', JSON.stringify(grpState));
+  S.set('groups', groups);
+  S.set('budgets', budgets);
+  S.set('goals', goals);
+  S.set('categoryMeta', categoryMeta);
+  refreshDataViews();
+  rebuildCatFilters();
+  toast(`Hoofdcategorie "${grp.name}" verwijderd.`);
+  return true;
+}
+
 async function grpCtxDelete() {
   closeGrpCtxMenu();
-  const grp = groups.find(g => g.id === _ctxGrpMenuId);
-  if (!grp) return;
-  toast('Hoofdcategorieën kunnen niet verwijderd worden, wel hernoemd.');
+  await deleteGroupIfEmpty(_ctxGrpMenuId);
 }
 
 // ── ALFABETISCH SORTEREN ──────────────────────────────────────────────────
@@ -1313,6 +1485,9 @@ function sortCatsAlpha(grpId) {
 
 // ── ALERT MODAL ───────────────────────────────────────────────────────────
 function alertModal(msg) {
+  if (typeof kAlert === 'function') {
+    return kAlert(msg, 'Niet genoeg beschikbaar');
+  }
   let overlay = document.getElementById('alert-modal-overlay');
   if (!overlay) {
     overlay = document.createElement('div');
@@ -1344,32 +1519,19 @@ async function aanvulGoal(e, catId, manualCents = null) {
     return;
   }
 
-  const goal    = goals[catId];
-  if (!isGoalActiveForMonth(goal)) {
-    toast('Dit budget is nog niet actief in deze maand.');
-    return;
-  }
+  const status = calcFundingRuleStatus(catId);
+  if (status.isManual) { toast('Dit potje wordt nog niet automatisch aangevuld.'); return; }
   const bm      = getBudgetMonth(currentYear, currentMonth);
   const current = Math.round((bm[catId] || 0) * 100);
 
   let needed;
   if (manualCents && manualCents > 0) {
     needed = manualCents;
-  } else if (goal?.type === 'target') {
-    if (goal.monthly && goal.monthly > 0) {
-      needed = goal.monthly;
-    } else {
-      const input = await kPrompt('Hoeveel wil je bijstorten?','200,00','Bijstorten');
-      if (input === null || input === '') return;
-      const cents = parseBedrag(input);
-      if (!cents || cents <= 0) { toast('Ongeldig bedrag.'); return; }
-      needed = cents;
-    }
   } else {
-    needed = calcGoalTarget(catId) - current;
+    needed = status.fillNeed;
   }
 
-  if (needed <= 0) { toast('Budget al volledig gevuld.'); return; }
+  if (needed <= 0) { toast('Dit potje is al volledig aangevuld.'); return; }
 
   const toAdd = Math.min(needed, rta);
   pushUndo();
@@ -1378,9 +1540,9 @@ async function aanvulGoal(e, catId, manualCents = null) {
   refreshDataViews();
 
   if (toAdd < needed) {
-    alertModal(`Gedeeltelijk aangevuld — ${fmt(needed - toAdd)} tekort om het budget volledig te bereiken.`);
+    alertModal(`Gedeeltelijk aangevuld — ${fmt(needed - toAdd)} tekort om dit potje volledig te vullen.`);
   } else {
-    toast(`${fmt(toAdd)} gebudgetteerd!`);
+    toast(`${fmt(toAdd)} toegewezen!`);
   }
 }
 
@@ -1395,9 +1557,7 @@ async function inlineDeleteCat(catId, grpId) {
 }
 
 async function grpCtxDelete2(grpId) {
-  const grp = groups.find(g => g.id === grpId);
-  if (!grp) return;
-  toast('Hoofdcategorieën kunnen niet verwijderd worden, wel hernoemd.');
+  await deleteGroupIfEmpty(grpId);
 }
 
 // ── TRANSACTIE VERWIJDEREN INLINE ─────────────────────────────────────────
