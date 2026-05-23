@@ -425,10 +425,22 @@ async function addGroup() {
   const name = await kPrompt('Naam van de nieuwe hoofdcategorie:', '', 'Hoofdcategorie toevoegen');
   if (!name?.trim()) return;
   pushUndo();
-  groups.push({ id: genId(), name: name.trim(), cats: [] });
+  const group = { id: genId(), name: name.trim(), cats: [] };
+  groups.push(group);
+  grpState[group.id] = true;
+  localStorage.setItem('keeep_grpState', JSON.stringify(grpState));
   S.set('groups', groups);
   refreshDataViews();
+  setTimeout(() => {
+    const el = document.querySelector(`.group-header[data-grp-id="${group.id}"]`);
+    if (!el) return;
+    el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    el.classList.add('group-header-new');
+    setTimeout(() => el.classList.remove('group-header-new'), 1400);
+  }, 60);
+  toast(`Hoofdcategorie "${group.name}" toegevoegd.`);
 }
+window.addGroup = addGroup;
 
 // Standaard emoji per groepsnaam
 const GROUP_DEFAULT_EMOJI = {
