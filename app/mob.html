@@ -142,7 +142,7 @@
       <div class="budget-action-bar">
         <button class="bab-btn bab-primary" onclick="addGroup()">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          Groep
+          Hoofdcategorie
         </button>
         <button class="bab-btn bab-fill" onclick="fillAllGoals()" title="Vul potjes met automatisch aanvullen vanuit klaar om toe te wijzen">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 3v18"/><path d="M5 10l7-7 7 7"/><path d="M5 21h14"/></svg>
@@ -240,7 +240,6 @@
                 </span>
               </button>
               <div class="cdp-collapse-body" id="cdp-goal-body">
-                <button class="cdp-info-btn" type="button" title="Uitleg" aria-label="Uitleg over potje vullen"><span>i</span> Hoe werkt dit?</button>
                 <!-- Heeft een budget -->
                 <div id="cdp-goal-progress">
                   <div class="cdp-goal-headline" id="cdp-goal-headline"></div>
@@ -646,26 +645,6 @@
     <div class="modal-footer">
       <button class="btn-secondary" onclick="closeModal('modal-standard-restore')">Annuleren</button>
       <button class="btn-danger" id="standard-restore-confirm" onclick="confirmStandardRestore()">Herstellen</button>
-    </div>
-  </div>
-</div>
-
-<!-- Uitleg automatisch aanvullen -->
-<div class="modal-overlay" id="modal-funding-info">
-  <div class="modal modal-funding-info">
-    <div class="modal-header">
-      <span class="funding-info-title-wrap">
-        <span class="funding-info-title-icon">i</span>
-        <span id="funding-info-title">Automatisch aanvullen</span>
-      </span>
-      <button class="modal-close" onclick="closeModal('modal-funding-info')">✕</button>
-    </div>
-    <div class="modal-body">
-      <div class="funding-info-body" id="funding-info-body"></div>
-    </div>
-    <div class="modal-footer">
-      <span></span>
-      <button class="btn-primary" onclick="closeModal('modal-funding-info')" type="button">Ik begrijp het</button>
     </div>
   </div>
 </div>

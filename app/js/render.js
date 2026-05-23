@@ -431,7 +431,6 @@ function renderBudget() {
           ${isOpen ? '▼' : '▶'}
         </button>
         <span class="group-name" title="${canEditGroup ? 'Dubbelklik om te hernoemen' : ''}" ${canEditGroup ? `ondblclick="renameGroup('${grp.id}')"` : ''}>${isCCGrp ? grp.name.replace(/^\S+\s*/, '') : grp.name}</span>
-        ${canFillGroup ? `<button class="group-fill-btn" title="Vul alle potjes in deze hoofdcategorie automatisch aan" onclick="fillAllGoals('${grp.id}')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 3v18"/><path d="M5 10l7-7 7 7"/><path d="M5 21h14"/></svg><span>Vul potjes</span></button>` : ''}
         ${canEditGroup ? `<button class="group-add-cat-btn" title="Potje toevoegen" onclick="addCategory('${grp.id}')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>` : ''}
         ${canEditGroup ? `<span class="cat-inline-actions" style="margin-left:4px;">
           <button class="cat-inline-btn" title="Hernoemen" onclick="renameGroup('${grp.id}')">✎</button>
@@ -4237,47 +4236,6 @@ function cdpCoverOverspending() {
     if (fromSel) fromSel.value = suggestMoveSourceForAmount(shortage, _cdpCatId) || (calcReadyToAssign() > 0 ? '__ready_to_assign__' : '');
     if (typeof renderMoveFundingOptions === 'function') renderMoveFundingOptions();
   }, 0);
-}
-
-function openFundingInfo() {
-  const content = fundingInfoContent();
-  const titleEl = document.getElementById('funding-info-title');
-  const bodyEl = document.getElementById('funding-info-body');
-  if (titleEl) titleEl.textContent = content.title;
-  if (bodyEl) bodyEl.innerHTML = content.body;
-  openModal('modal-funding-info');
-}
-window.openFundingInfo = openFundingInfo;
-
-document.addEventListener('click', e => {
-  const btn = e.target.closest?.('.cdp-info-btn');
-  if (!btn) return;
-  e.preventDefault();
-  e.stopPropagation();
-  openFundingInfo();
-});
-
-document.addEventListener('keydown', e => {
-  const btn = e.target.closest?.('.cdp-info-btn');
-  if (!btn || (e.key !== 'Enter' && e.key !== ' ')) return;
-  e.preventDefault();
-  e.stopPropagation();
-  openFundingInfo();
-});
-
-function fundingInfoContent() {
-  return {
-    title: 'Potje vullen',
-    body: `
-      <p><strong>Handmatig</strong> is de standaard. Je kiest zelf wanneer je geld in dit potje zet. Keeep neemt dit potje niet mee met <strong>Vul potjes</strong>, maar waarschuwt wel bij een tekort.</p>
-      <p>Wil je dat Keeep actief met je meedenkt, dan kun je een maandbedrag of doelbedrag instellen. Keeep vult alleen aan zolang er beschikbaar geld is. Je bepaalt dit per potje en kunt het later altijd aanpassen.</p>
-      <div class="funding-info-list">
-        <span><strong>Maandbedrag</strong> laat Keeep elke maand aanvullen tot een vast bedrag, als er genoeg beschikbaar is. Handig voor vaste lasten en potjes die meestal hetzelfde nodig hebben, zoals huur, abonnementen, verzekering of telefoon.</span>
-        <span><strong>Doelbedrag</strong> laat Keeep naar een gewenst bedrag toewerken, als er genoeg beschikbaar is. Met einddatum rekent Keeep uit hoeveel er per maand nodig is; zonder einddatum bewaakt Keeep dat er altijd een bepaald bedrag beschikbaar blijft, zoals bij een buffer of noodfonds.</span>
-        <span><strong>Handmatig</strong> laat jou zelf bepalen wanneer en hoeveel je toevoegt. Handig voor potjes die per maand kunnen afwijken, zoals boodschappen, dagjes weg, games of uit eten.</span>
-      </div>
-    `
-  };
 }
 
 function suggestMoveSourceForAmount(amount, targetCatId) {

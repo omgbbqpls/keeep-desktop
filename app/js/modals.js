@@ -422,7 +422,7 @@ function saveAcc() {
 
 // ── GROEP / CATEGORIE ─────────────────────────────────────────────────────
 async function addGroup() {
-  const name = await kPrompt('Naam van de nieuwe groep:', '', 'Groep toevoegen');
+  const name = await kPrompt('Naam van de nieuwe hoofdcategorie:', '', 'Hoofdcategorie toevoegen');
   if (!name?.trim()) return;
   pushUndo();
   groups.push({ id: genId(), name: name.trim(), cats: [] });
@@ -1069,7 +1069,7 @@ async function renameGroup(grpId) {
   if (!grp) return;
   if (grp.name === 'Inkomen') { toast('De Inkomen-groep kan niet hernoemd worden.'); return; }
   if (grp.name === 'Vooruit plannen') { toast('Deze groep is onderdeel van de maand-vooruit methode.'); return; }
-  const name = await kPrompt('', grp.name, 'Groep hernoemen');
+  const name = await kPrompt('', grp.name, 'Hoofdcategorie hernoemen');
   if (!name?.trim() || name.trim() === grp.name) return;
   pushUndo();
   grp.name = name.trim();

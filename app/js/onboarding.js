@@ -670,7 +670,7 @@ function renderSetupCategories(body) {
     <div class="ob-category-group-head">
       <input class="ob-category-group-name" value="Inkomsten" disabled>
       <button class="ob-group-toggle ${incomeSelectedCount === SETUP_INCOME_CATEGORIES.length ? 'is-on' : ''}" data-group="Inkomen">
-        ${incomeSelectedCount === 0 ? 'Groep toevoegen' : 'Groep weghalen'}
+        ${incomeSelectedCount === 0 ? 'Hoofdcategorie toevoegen' : 'Hoofdcategorie weghalen'}
       </button>
     </div>`;
   const incomeGrid = document.createElement('div');
@@ -707,7 +707,7 @@ function renderSetupCategories(body) {
       <div class="ob-category-group-head">
         <input class="ob-category-group-name" data-group="${groupName}" value="${_ob.groupNames[groupName] || groupName}">
         <button class="ob-group-toggle ${allSelected ? 'is-on' : ''}" data-group="${groupName}">
-          ${noneSelected ? 'Groep toevoegen' : 'Groep weghalen'}
+          ${noneSelected ? 'Hoofdcategorie toevoegen' : 'Hoofdcategorie weghalen'}
         </button>
       </div>`;
 
