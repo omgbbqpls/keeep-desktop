@@ -37,18 +37,24 @@ const CATEGORY_SVG_ICONS = {
   bike: { label: 'Vervoer', svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="17" r="3"/><circle cx="18" cy="17" r="3"/><path d="M8 17h4l3-6h-4l-3 6Z"/><path d="M11 11 9 7"/><path d="M14 7h3"/></svg>' },
   paw: { label: 'Huisdieren', svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="10" r="2"/><circle cx="9" cy="6" r="2"/><circle cx="15" cy="6" r="2"/><circle cx="19" cy="10" r="2"/><path d="M7.5 18a4.5 4.5 0 0 1 9 0c0 2-2 3-4.5 3S7.5 20 7.5 18Z"/></svg>' },
   shirt: { label: 'Kleding', svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4 5 6 2 8l3 5 3-2v9h8v-9l3 2 3-5-3-2-3-2"/><path d="M9 4a3 3 0 0 0 6 0"/></svg>' },
-  coffee: { label: 'Koffie', svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h12v5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5V8Z"/><path d="M16 10h2a3 3 0 0 1 0 6h-2"/><path d="M6 21h12"/></svg>' }
+  coffee: { label: 'Koffie', svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h12v5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5V8Z"/><path d="M16 10h2a3 3 0 0 1 0 6h-2"/><path d="M6 21h12"/></svg>' },
+  person: { label: 'Persoon', svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7" r="4"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/></svg>' },
+  calendar: { label: 'Kalender', svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4"/><path d="M8 3v4"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/></svg>' },
+  receipt: { label: 'Rekening', svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3Z"/><path d="M9 8h6"/><path d="M9 12h6"/><path d="M9 16h4"/></svg>' },
+  piggy: { label: 'Sparen', svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12a6 6 0 0 1 6-6h4a5 5 0 0 1 5 5v2a5 5 0 0 1-5 5H9l-2 3H5l1-4a6 6 0 0 1-1-5Z"/><path d="M4 12H2v3h3"/><path d="M15 6l2-3h2l-1 4"/><path d="M9 18v3"/><path d="M16 18v3"/><path d="M16 11h.01"/></svg>' },
+  scissors: { label: 'Kapper', svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="7" r="3"/><circle cx="6" cy="17" r="3"/><path d="M8.7 8.7 20 20"/><path d="M8.7 15.3 20 4"/></svg>' },
+  shopping_bag: { label: 'Aankopen', svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8h12l-1 13H7L6 8Z"/><path d="M9 8a3 3 0 0 1 6 0"/></svg>' }
 };
 
 const CATEGORY_ICON_KEYS = Object.keys(CATEGORY_SVG_ICONS);
 const DEFAULT_CATEGORY_ICON_KEY = 'wallet';
 const GROUP_DEFAULT_ICON_KEY = {
   'Creditcard betalingen': 'wallet',
-  'Vaste lasten': 'home',
+  'Vaste lasten': 'receipt',
   'Dagelijks leven': 'cart',
-  'Vrije ruimte': 'wallet',
-  'Voor later': 'target',
-  'Vervoer': 'car',
+  'Vrije ruimte': 'ticket',
+  'Voor later': 'piggy',
+  'Vervoer': 'bike',
   'Inkomen': 'wallet'
 };
 

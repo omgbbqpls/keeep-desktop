@@ -992,7 +992,7 @@ const DEFAULT_CATEGORY_ICON_BY_EMOJI = {
   '🏛️': 'bank',
   '🏠': 'home',
   '📺': 'tv',
-  '🧒': 'gift',
+  '🧒': 'person',
   '📰': 'newspaper',
   '🚙': 'car',
   '💻': 'laptop',
@@ -1017,7 +1017,7 @@ const DEFAULT_CATEGORY_ICON_BY_EMOJI = {
   '🚲': 'bike',
   '🐾': 'paw',
   '🧽': 'wrench',
-  '💇': 'shirt',
+  '💇': 'scissors',
   '👕': 'shirt',
   '🩺': 'medical',
   '🅿️': 'road',
@@ -1028,10 +1028,10 @@ const DEFAULT_CATEGORY_ICON_BY_EMOJI = {
   '☕': 'coffee',
   '🍽️': 'utensils',
   '✈️': 'plane',
-  '💸': 'wallet',
+  '💸': 'piggy',
   '🔧': 'wrench',
-  '🛍️': 'gift',
-  '📅': 'document',
+  '🛍️': 'shopping_bag',
+  '📅': 'calendar',
   '🛠️': 'wrench'
 };
 
