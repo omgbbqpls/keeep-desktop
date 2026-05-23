@@ -6,7 +6,7 @@
   <title>Keeep — Mobiel</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="css/keeep.css?v=106">
+  <link rel="stylesheet" href="css/keeep.css?v=107">
   <link rel="stylesheet" href="css/mobile.css?v=14">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0d0f14">
@@ -74,10 +74,10 @@
 
     <div class="sb-footer">
       <button class="settings-btn" title="Instellingen" onclick="openModal('modal-settings')">⚙ <span>Instellingen</span></button>
-      <div style="display:flex;gap:6px;margin-bottom:6px;">
-        <button class="sb-action-btn" onclick="exportBackup()">↓ Back-up</button>
+      <div class="sb-backup-actions">
+        <button class="sb-action-btn" onclick="exportBackup()">↓ Back-up maken</button>
         <label class="sb-action-btn" style="cursor:pointer;">
-          ↑ Importeer
+          ↑ Back-up herstellen
           <input type="file" accept=".json" style="display:none"
             onchange="importBackup(this.files[0])">
         </label>
@@ -144,25 +144,25 @@
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           Hoofdcategorie
         </button>
-        <button class="bab-btn bab-fill" onclick="fillAllGoals()" title="Vul potjes met automatisch aanvullen vanuit klaar om toe te wijzen">
+        <button class="bab-btn bab-fill" onclick="fillAllGoals()" title="Vul potjes met automatisch aanvullen vanuit nog toe te wijzen">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 3v18"/><path d="M5 10l7-7 7 7"/><path d="M5 21h14"/></svg>
-          Vul alle potjes
+          Potjes vullen
         </button>
         <div class="bab-divider"></div>
         <button class="bab-btn" id="btn-undo" data-undo-btn onclick="undoLastAction()" disabled title="Ongedaan maken">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v6h6"/><path d="M3 13C5 8 9.5 5 15 5a9 9 0 0 1 0 18c-4 0-7.5-2-9-5"/></svg>
-          Ongedaan
+          Ongedaan maken
         </button>
-        <button class="bab-btn" id="btn-redo" data-redo-btn onclick="redoLastAction()" disabled title="Opnieuw">
+        <button class="bab-btn" id="btn-redo" data-redo-btn onclick="redoLastAction()" disabled title="Opnieuw doen">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 7v6h-6"/><path d="M21 13c-2 5-6.5 8-12 8a9 9 0 0 1 0-18c4 0 7.5 2 9 5"/></svg>
-          Opnieuw
+          Opnieuw doen
         </button>
         <div class="bab-divider"></div>
         <div class="bab-filters">
           <button class="bfilter active" onclick="setBudgetFilter('all', this)">Alles</button>
-          <button class="bfilter" onclick="setBudgetFilter('underfunded', this)">Te weinig</button>
+          <button class="bfilter" onclick="setBudgetFilter('underfunded', this)">Tekort</button>
           <button class="bfilter" onclick="setBudgetFilter('overspent', this)">Overschreden</button>
-          <button class="bfilter" onclick="setBudgetFilter('funded', this)">Gedekt</button>
+          <button class="bfilter" onclick="setBudgetFilter('funded', this)">Gevuld</button>
         </div>
         <div class="bab-spacer"></div>
         <div class="budget-search-wrap">
@@ -176,8 +176,8 @@
         <div class="budget-table">
           <div class="budget-table-header">
             <div id="th-cat"><button class="budget-master-toggle" type="button" onclick="toggleAllGroups()" title="Alles open/dicht"><span id="budget-master-chevron">▼</span><span>Categorie</span></button></div>
-            <div id="th-available">Budget</div>
-            <div id="th-activity">Betaald</div>
+            <div id="th-available">Toegewezen</div>
+            <div id="th-activity">Uitgegeven</div>
             <div id="th-assigned">Beschikbaar</div>
           </div>
           <div id="budget-body"></div>
@@ -212,15 +212,15 @@
                 <button class="cdp-overspend-btn" onclick="cdpCoverOverspending()" type="button">Tekort oplossen</button>
               </div>
               <div class="cdp-row">
-                <span class="cdp-lbl">Over van vorige maand</span>
+                <span class="cdp-lbl">Meegenomen</span>
                 <span class="cdp-val" id="cdp-cash-leftover"></span>
               </div>
               <div class="cdp-row">
-                <span class="cdp-lbl">Budget deze maand</span>
+                <span class="cdp-lbl">Toegewezen deze maand</span>
                 <span class="cdp-val" id="cdp-budgeted"></span>
               </div>
               <div class="cdp-row">
-                <span class="cdp-lbl">Betaald uit eigen geld</span>
+                <span class="cdp-lbl" id="cdp-cash-spent-label">Betaald zelf</span>
                 <span class="cdp-val" id="cdp-cash-spent"></span>
               </div>
               <div class="cdp-row">
@@ -249,7 +249,7 @@
                     <div class="cdp-goal-check">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="8 12 11 15 16 9"/></svg>
                     </div>
-                    <div class="cdp-goal-reached-badge" id="cdp-goal-reached-badge">Deze maand gedekt</div>
+                    <div class="cdp-goal-reached-badge" id="cdp-goal-reached-badge">Deze maand gevuld</div>
                   </div>
                   <div class="cdp-goal-note" id="cdp-goal-note"></div>
 
@@ -752,7 +752,7 @@
 
       <div class="goal-pane" data-pane="manual" style="display:none">
         <div class="goal-helper">
-          Dit potje wordt nog niet automatisch aangevuld.
+          Dit potje wordt niet automatisch aangevuld.
         </div>
       </div>
     </div>
@@ -818,9 +818,9 @@
 <script src="js/dialog.js?v=13"></script>
 <script src="js/state.js?v=34"></script>
 <script src="js/format.js?v=12"></script>
-<script src="js/render.js?v=135"></script>
-<script src="js/modals.js?v=62"></script>
-<script src="js/app.js?v=50"></script>
+<script src="js/render.js?v=136"></script>
+<script src="js/modals.js?v=63"></script>
+<script src="js/app.js?v=51"></script>
 <script>
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch(() => {});

@@ -295,6 +295,7 @@ html.light .sb-rta-btn{color:var(--green);background:var(--green-dim);}
 .sb-add-account-btn .nb-left svg{opacity:1;color:#fff;stroke-width:2.2;}
 
 .sb-footer{padding:10px 10px 12px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:6px;position:relative;z-index:1;}
+.sb-backup-actions{display:flex;flex-direction:column;gap:6px;margin-bottom:6px;}
 .stat-card{padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);}
 .stat-card-label{font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;}
 .stat-card-val{font-family:var(--font-num);font-size:17px;font-weight:500;margin-top:4px;letter-spacing:-.3px;}
@@ -787,14 +788,13 @@ html.light .cat-pill-idle{background:transparent;color:#a2aabd;}
 
 .status-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0;}
 .cat-emoji{
-  width:24px;height:24px;border-radius:7px;
+  width:21px;height:21px;border-radius:0;
   display:inline-flex;align-items:center;justify-content:center;
-  flex:0 0 24px;font-size:15px;line-height:1;text-align:center;
-  background:rgba(255,255,255,.045);
-  border:1px solid rgba(255,255,255,.085);
+  flex:0 0 21px;font-size:13px;line-height:1;text-align:center;
+  background:transparent;border:0;
 }
 .cat-svg-icon{color:var(--text2);}
-.cat-svg-icon svg{width:17px;height:17px;display:block;stroke:currentColor;stroke-width:2.25;}
+.cat-svg-icon svg{width:15px;height:15px;display:block;stroke:currentColor;stroke-width:2.15;}
 .cat-row:hover .cat-svg-icon,.cat-row.cdp-selected .cat-svg-icon{color:var(--text);}
 .status-dot.green{background:var(--green);}
 .status-dot.orange{background:var(--amber);}

@@ -532,7 +532,7 @@ function openMoveModal(fromCatId = null, startMode = null, options = {}) {
     if (idx === 0) {
       const rtaOpt = document.createElement('option');
       rtaOpt.value = MOVE_SOURCE_RTA;
-      rtaOpt.textContent = `Klaar om toe te wijzen · ${fmt(calcReadyToAssign())}`;
+      rtaOpt.textContent = `Nog toe te wijzen · ${fmt(calcReadyToAssign())}`;
       sel.appendChild(rtaOpt);
     }
     groups.forEach(grp => {
@@ -591,7 +591,7 @@ function renderMoveFundingOptions() {
 
     const nameEl = document.createElement('span');
     nameEl.className = 'move-source-name';
-    nameEl.textContent = 'Klaar om toe te wijzen';
+    nameEl.textContent = 'Nog toe te wijzen';
     const amountEl = document.createElement('span');
     amountEl.className = 'move-source-amount';
     amountEl.textContent = fmt(rta);
@@ -1400,7 +1400,7 @@ function grpCtxRename() {
 }
 
 function isProtectedGroupDelete(grp) {
-  const ccName = typeof _ccGrpName === 'function' ? _ccGrpName() : 'Creditcard betalingen';
+  const ccName = typeof _ccGrpName === 'function' ? _ccGrpName() : 'Creditcardbetalingen';
   return !grp || grp.name === 'Inkomen' || grp.name === 'Vooruit plannen' || grp.name === ccName;
 }
 
@@ -1522,7 +1522,7 @@ async function aanvulGoal(e, catId, manualCents = null) {
   }
 
   const status = calcFundingRuleStatus(catId);
-  if (status.isManual) { toast('Dit potje wordt nog niet automatisch aangevuld.'); return; }
+  if (status.isManual) { toast('Dit potje wordt niet automatisch aangevuld.'); return; }
   const bm      = getBudgetMonth(currentYear, currentMonth);
   const current = Math.round((bm[catId] || 0) * 100);
 

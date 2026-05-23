@@ -499,26 +499,45 @@ function ensureIncomeGroup() {
   S.set('groups', groups); // altijd opslaan
 }
 
-const CC_GROUP_NAME = '💳 Creditcard betalingen';
+const CC_GROUP_NAME = '💳 Creditcardbetalingen';
+const CC_GROUP_LEGACY_NAME = '💳 Creditcard betalingen';
 
 function ensureCreditCardPaymentGroup() {
   const creditAccs = getBudgetCreditAccounts();
   let changed = false;
 
   if (!creditAccs.length) {
-    const idx = groups.findIndex(g => g.name === CC_GROUP_NAME);
-    if (idx !== -1) { groups.splice(idx, 1); changed = true; }
+    for (let i = groups.length - 1; i >= 0; i--) {
+      const group = groups[i];
+      if (group.name === CC_GROUP_NAME || group.name === CC_GROUP_LEGACY_NAME) { groups.splice(i, 1); changed = true; }
+    }
     if (changed) S.set('groups', groups);
     return;
   }
 
   // Zorg dat de CC-groep bestaat, direct na Inkomen
-  let ccGroup = groups.find(g => g.name === CC_GROUP_NAME);
+  const ccGroups = groups.filter(g => g.name === CC_GROUP_NAME || g.name === CC_GROUP_LEGACY_NAME);
+  let ccGroup = ccGroups[0];
   if (!ccGroup) {
     ccGroup = { id: genId(), name: CC_GROUP_NAME, cats: [] };
     const incomeIdx = groups.findIndex(g => g.name === INCOME_GROUP_NAME);
     groups.splice(incomeIdx >= 0 ? incomeIdx + 1 : 0, 0, ccGroup);
     changed = true;
+  } else if (ccGroup.name !== CC_GROUP_NAME) {
+    ccGroup.name = CC_GROUP_NAME;
+    changed = true;
+  }
+  if (ccGroups.length > 1) {
+    ccGroups.slice(1).forEach(extraGroup => {
+      extraGroup.cats.forEach(extraCat => {
+        if (!ccGroup.cats.some(cat => cat.id === extraCat.id || (cat._accId && cat._accId === extraCat._accId))) {
+          ccGroup.cats.push(extraCat);
+        }
+      });
+      const idx = groups.indexOf(extraGroup);
+      if (idx !== -1) groups.splice(idx, 1);
+      changed = true;
+    });
   }
 
   // Één categorie per creditcard-rekening

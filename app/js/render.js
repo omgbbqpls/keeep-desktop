@@ -49,7 +49,7 @@ const CATEGORY_SVG_ICONS = {
 const CATEGORY_ICON_KEYS = Object.keys(CATEGORY_SVG_ICONS);
 const DEFAULT_CATEGORY_ICON_KEY = 'wallet';
 const GROUP_DEFAULT_ICON_KEY = {
-  'Creditcard betalingen': 'wallet',
+  'Creditcardbetalingen': 'wallet',
   'Vaste lasten': 'receipt',
   'Dagelijks leven': 'cart',
   'Vrije ruimte': 'ticket',
@@ -336,7 +336,7 @@ function renderBudget() {
     .reduce((s, tx) => s + tx.amount, 0);
   const netto = totalIncome + totalSpent; // totalSpent is negatief
 
-  // "Klaar om toe te wijzen" in de stats-balk bijwerken
+  // "Nog toe te wijzen" in de stats-balk bijwerken
   const sbNtvEl = document.getElementById('sidebar-ntv-val');
   if (sbNtvEl) {
     sbNtvEl.textContent = fmt(rta);
@@ -1297,7 +1297,7 @@ function isIncomeCat(catId) {
 
 // ── CC BETALING HELPERS ───────────────────────────────────────────────────
 function _ccGrpName() {
-  return typeof CC_GROUP_NAME !== 'undefined' ? CC_GROUP_NAME : '💳 Creditcard betalingen';
+  return typeof CC_GROUP_NAME !== 'undefined' ? CC_GROUP_NAME : '💳 Creditcardbetalingen';
 }
 function isCCPaymentCat(catId) {
   const g = groups.find(g => g.name === _ccGrpName());
@@ -1486,7 +1486,7 @@ function calcReadyToAssign() {
 function renderAvailabilityMode(rta) {
   const label = document.getElementById('mt-available-label');
   const note  = document.getElementById('mt-available-note');
-  if (label) label.textContent = 'Klaar om toe te wijzen';
+  if (label) label.textContent = 'Nog toe te wijzen';
   if (note)  { note.textContent = ''; note.style.display = 'none'; }
 
   const banner     = document.getElementById('budget-overspend-banner');
@@ -1713,17 +1713,17 @@ function renderAheadPanel() {
           <strong>${monthLabelShort(item.year, item.month)} ${item.year}</strong>
         </div>
         <button class="ahead-available ${readyCls}" type="button" onclick="event.stopPropagation();toggleAheadPanel()">
-          <strong>Beschikbaar</strong>
+          <strong>Nog toe te wijzen</strong>
           <span>${fmt(readyToAssign)}</span>
           <em aria-hidden="true">${isExpanded ? '⌃' : '⌄'}</em>
         </button>
         <button class="ahead-assign-btn" type="button" onclick="event.stopPropagation();toggleAssignMenu(event)">Toewijzen</button>
         <div class="ahead-month-breakdown">
-          <span><em>Over van vorige maand</em><strong>${fmt(item.notBudgetedPrev)}</strong></span>
+          <span><em>Meegenomen</em><strong>${fmt(item.notBudgetedPrev)}</strong></span>
           ${item.overspentPrev < 0 ? `<span>Tekort ${prevName}: <strong class="neg">${fmt(overspentDisplay)}</strong></span>` : ''}
           <span><em>Binnengekomen deze maand</em><strong>${fmt(item.income)}</strong></span>
-          <span><em>Al verdeeld</em><strong>${fmt(-item.budgeted)}</strong></span>
-          <span class="ahead-breakdown-result"><em>Beschikbaar</em><strong class="${readyCls}">${fmt(readyToAssign)}</strong></span>
+          <span><em>Toegewezen deze maand</em><strong>${fmt(-item.budgeted)}</strong></span>
+          <span class="ahead-breakdown-result"><em>Nog toe te wijzen</em><strong class="${readyCls}">${fmt(readyToAssign)}</strong></span>
         </div>
       </div>`;
   }).join('');
@@ -2167,12 +2167,12 @@ function buildCatMeta({ cat, income, goal, goalTarget, budgeted, spent, availabl
         statusLeadingIcon = true;
       } else {
         statusKey = 'funded';
-        statusTitle = 'Gedekt';
+        statusTitle = 'Gevuld';
         statusIconOnly = true;
       }
     } else {
       statusKey = 'funded';
-      statusTitle = 'Gedekt';
+      statusTitle = 'Gevuld';
       statusIconOnly = true;
     }
   } else if (status.isManual) {
@@ -2412,7 +2412,7 @@ function getGroupGoalFillNeed(groupId) {
 function fillAllGoals(groupId = null) {
   let rta = calcReadyToAssign();
   if (rta <= 0) {
-    alertModal('Er is niets klaar om toe te wijzen om potjes mee te vullen.');
+    alertModal('Er is niets toe te wijzen om potjes mee te vullen.');
     return;
   }
 
@@ -2470,7 +2470,7 @@ function fillAllGoals(groupId = null) {
   }
 }
 
-// ── Klaar om toe te wijzen ────────────────────────────────────────────────
+// ── Nog toe te wijzen ─────────────────────────────────────────────────────
 let _assignTab = 'smart';
 
 function closeAssignMenu() {
@@ -2502,7 +2502,7 @@ function openAssignMenu() {
     <div class="assign-head">
       <div>
         <span class="assign-kicker">Budget verdelen</span>
-        <span class="assign-available">Beschikbaar: <strong>${fmt(calcReadyToAssign())}</strong></span>
+        <span class="assign-available">Nog toe te wijzen: <strong>${fmt(calcReadyToAssign())}</strong></span>
       </div>
       <button type="button" class="assign-close" onclick="closeAssignMenu()">×</button>
     </div>
@@ -2893,7 +2893,7 @@ function assignManual() {
   const rta = calcReadyToAssign();
   if (!catId) { toast('Kies een potje.'); return; }
   if (cents <= 0) { toast('Vul een bedrag in.'); return; }
-  if (cents > rta) { toast('Niet genoeg klaar om toe te wijzen.'); return; }
+  if (cents > rta) { toast('Niet genoeg toe te wijzen.'); return; }
 
   pushUndo();
   const bm = getBudgetMonth(currentYear, currentMonth);
@@ -2940,7 +2940,7 @@ function assignReduceOverfunding() {
   budgets[monthKey(currentYear, currentMonth)] = bm;
   S.set('budgets', budgets);
   refreshBudgetSurfaces();
-  toast(`${fmt(total)} teruggezet naar klaar om toe te wijzen.`);
+  toast(`${fmt(total)} teruggezet naar nog toe te wijzen.`);
 }
 
 
@@ -3954,7 +3954,7 @@ function refreshCatDetail() {
   const cashSpentEl = document.getElementById('cdp-cash-spent');
   const cashSpentLabel = document.getElementById('cdp-cash-spent-label');
   const showCreditSpent = getBudgetCreditAccounts().length > 0;
-  if (cashSpentLabel) cashSpentLabel.textContent = showCreditSpent ? 'Uitgegeven van eigen geld' : 'Uitgegeven deze maand';
+  if (cashSpentLabel) cashSpentLabel.textContent = showCreditSpent ? 'Betaald zelf' : 'Betaald deze maand';
   if (cashSpentEl) {
     cashSpentEl.textContent = fmt(cashSpent);
     cashSpentEl.className = 'cdp-val ' + (cashSpent < 0 ? 'neg' : '');
@@ -4036,7 +4036,7 @@ function refreshCatDetail() {
         ? `Nog ${fmt(togo)} nodig deze maand`
         : isTargetRule
         ? 'Deze maand op schema'
-        : 'Deze maand compleet';
+        : 'Deze maand gevuld';
       reachedBadge.classList.toggle('is-needed', isNeeded);
       reachedBadge.classList.toggle('is-shortage', isShortage);
     }
@@ -4109,7 +4109,7 @@ function refreshCatDetail() {
     if (rowsEl) rowsEl.style.display = 'flex';
     if (goalEmpty) {
       goalEmpty.style.display = income ? 'none' : 'block';
-      goalEmpty.innerHTML = `Dit potje wordt nog niet automatisch aangevuld.`;
+      goalEmpty.innerHTML = `Dit potje wordt niet automatisch aangevuld.`;
     }
     if (goalEmptyAct) goalEmptyAct.style.display = income ? 'none' : 'flex';
     document.getElementById('cdp-goal-edit-btn')?.classList.remove('is-secondary');
@@ -4142,7 +4142,7 @@ function refreshCatDetail() {
 
   const list = document.getElementById('cdp-txn-list');
   if (!txns.length) {
-    list.innerHTML = '<div style="color:var(--text3);font-size:11px;padding:4px 0;">Geen transacties deze maand.</div>';
+    list.innerHTML = '<div style="color:var(--text3);font-size:11px;padding:4px 0;">Nog geen transacties deze maand.</div>';
   } else {
     list.innerHTML = txns.map(t => {
       const [dy, dm, dd] = t.date.split('-');
@@ -4182,7 +4182,7 @@ function cdpAanvul() {
   if (!_cdpCatId) return;
   const rta = calcReadyToAssign();
   if (rta <= 0) {
-    alertModal('Er is niet genoeg klaar om toe te wijzen. Voeg eerst inkomen toe of maak budget vrij.');
+    alertModal('Er is niet genoeg toe te wijzen. Voeg eerst inkomen toe of maak budget vrij.');
     return;
   }
   const status = calcFundingRuleStatus(_cdpCatId);
@@ -4190,12 +4190,12 @@ function cdpAanvul() {
   const current = Math.round((bm[_cdpCatId] || 0) * 100);
   const needed = status.fillNeed;
   if (status.isManual) {
-    toast('Dit potje wordt nog niet automatisch aangevuld.');
+    toast('Dit potje wordt niet automatisch aangevuld.');
     return;
   }
   if (needed <= 0) { toast('Dit potje is al volledig aangevuld.'); return; }
   if (rta < needed) {
-    alertModal(`Onvoldoende saldo — er is ${fmt(rta)} klaar om toe te wijzen, maar ${fmt(needed)} nodig om dit potje volledig te vullen.`);
+    alertModal(`Onvoldoende saldo — er is ${fmt(rta)} nog toe te wijzen, maar ${fmt(needed)} nodig om dit potje volledig te vullen.`);
     return;
   }
   pushUndo();
@@ -4420,7 +4420,7 @@ async function cdpReduceOverfunding() {
   const current = calcCatBudgeted(catId);
   const over = current - target;
   if (over <= 0) { toast('Geen overbudget om te verminderen.'); return; }
-  const ok = await kConfirm(`${fmt(over)} terug naar "Klaar om toe te wijzen"?`, 'Verminder overbudget');
+  const ok = await kConfirm(`${fmt(over)} terug naar "Nog toe te wijzen"?`, 'Verminder overbudget');
   if (!ok) return;
   pushUndo();
   const bm = getBudgetMonth(currentYear, currentMonth);
@@ -4436,7 +4436,7 @@ async function cdpResetAvailable() {
   const catId = _cdpCatId;
   const avail = calcCatAvailable(catId);
   if (avail <= 0) { toast('Beschikbaar is al 0 of negatief.'); return; }
-  const ok = await kConfirm(`${fmt(avail)} terug naar "Klaar om toe te wijzen"?`, 'Reset beschikbaar');
+  const ok = await kConfirm(`${fmt(avail)} terug naar "Nog toe te wijzen"?`, 'Reset beschikbaar');
   if (!ok) return;
   pushUndo();
   const bm = getBudgetMonth(currentYear, currentMonth);
@@ -4454,7 +4454,7 @@ async function cdpResetAssigned() {
   const catId = _cdpCatId;
   const current = calcCatBudgeted(catId);
   if (current <= 0) { toast('Geen budget om te resetten.'); return; }
-  const ok = await kConfirm(`${fmt(current)} terug naar "Klaar om toe te wijzen"?`, 'Reset budget');
+  const ok = await kConfirm(`${fmt(current)} terug naar "Nog toe te wijzen"?`, 'Reset budget');
   if (!ok) return;
   pushUndo();
   const bm = getBudgetMonth(currentYear, currentMonth);
