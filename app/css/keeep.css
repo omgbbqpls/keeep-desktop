@@ -1307,17 +1307,6 @@ td.txn-del-cell{text-align:center;vertical-align:middle;}
   background:rgba(255,255,255,.032);border:1px solid rgba(139,146,170,.18);
   color:var(--text2);
 }
-.cat-edit-subscription-row{
-  display:flex;align-items:flex-start;gap:12px;margin-top:6px;padding:14px;
-  border:1px solid var(--border);border-radius:var(--r);
-  background:rgba(255,255,255,.025);cursor:pointer;
-}
-.cat-edit-subscription-row input{
-  width:18px;height:18px;margin-top:2px;accent-color:var(--purple);cursor:pointer;flex-shrink:0;
-}
-.cat-edit-subscription-row span{display:flex;flex-direction:column;gap:3px;}
-.cat-edit-subscription-row strong{color:var(--text);font-size:13px;font-weight:750;}
-.cat-edit-subscription-row em{color:var(--text3);font-size:12px;font-style:normal;line-height:1.35;}
 .checkbox-label{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text);cursor:pointer;text-transform:none;letter-spacing:0;font-weight:400;}
 
 /* ── Settings modal ─────────────────────────────────────────────────────── */

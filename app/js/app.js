@@ -980,8 +980,78 @@ const DEFAULT_GROUPS = [
   },
 ];
 
+const DEFAULT_CATEGORY_ICON_BY_EMOJI = {
+  '💼': 'wallet',
+  '🚗': 'car',
+  '☁️': 'cloud',
+  '🏦': 'bank',
+  '🤖': 'laptop',
+  '🤝': 'handshake',
+  '🏰': 'castle',
+  '⚡': 'bolt',
+  '🏛️': 'bank',
+  '🏠': 'home',
+  '📺': 'tv',
+  '🧒': 'gift',
+  '📰': 'newspaper',
+  '🚙': 'car',
+  '💻': 'laptop',
+  '📱': 'phone',
+  '🎬': 'film',
+  '🛡️': 'shield',
+  '🎟️': 'ticket',
+  '🎧': 'headphones',
+  '🏢': 'home',
+  '🎵': 'music',
+  '💪': 'dumbbell',
+  '🎓': 'graduation',
+  '💧': 'droplet',
+  '🛣️': 'road',
+  '▶️': 'film',
+  '⚽': 'football',
+  '🏥': 'medical',
+  '🛒': 'cart',
+  '⛽': 'fuel',
+  '🎁': 'gift',
+  '💊': 'medical',
+  '🚲': 'bike',
+  '🐾': 'paw',
+  '🧽': 'wrench',
+  '💇': 'shirt',
+  '👕': 'shirt',
+  '🩺': 'medical',
+  '🅿️': 'road',
+  '🎡': 'ticket',
+  '🎮': 'gamepad',
+  '🎨': 'target',
+  '👗': 'shirt',
+  '☕': 'coffee',
+  '🍽️': 'utensils',
+  '✈️': 'plane',
+  '💸': 'wallet',
+  '🔧': 'wrench',
+  '🛍️': 'gift',
+  '📅': 'document',
+  '🛠️': 'wrench'
+};
+
+function defaultCategoryIconForRawName(rawName, groupName = '') {
+  const token = String(rawName || '').trim().split(/\s+/)[0] || '';
+  const groupDefault = typeof GROUP_DEFAULT_ICON_KEY !== 'undefined' ? GROUP_DEFAULT_ICON_KEY[groupName] : '';
+  const fallback = typeof DEFAULT_CATEGORY_ICON_KEY !== 'undefined' ? DEFAULT_CATEGORY_ICON_KEY : 'wallet';
+  return DEFAULT_CATEGORY_ICON_BY_EMOJI[token]
+    || DEFAULT_CATEGORY_ICON_BY_EMOJI[token.replace(/\uFE0F/g, '')]
+    || groupDefault
+    || fallback;
+}
+
 function defaultCatLabel(rawName) {
-  return rawName.replace(/\s*\[abonnement\]\s*/i, '').trim();
+  const cleaned = String(rawName || '')
+    .replace(/\s*\[abonnement\]\s*/i, '')
+    .trim();
+  return /^\p{Emoji}/u.test(cleaned)
+    ? cleaned.replace(/^\S+\s*/, '').trim()
+    : cleaned;
 }
 
 function defaultCatKey(groupName, rawName) {
@@ -996,14 +1066,11 @@ function buildDefaultGroups(selectedKeys = null) {
       .filter(rawName => group.name === 'Inkomen' || !selectedKeys || selectedKeys.has(defaultCatKey(group.name, rawName)))
       .map(rawName => {
         const id = genId();
-        const isSubscription = /\[abonnement\]/i.test(rawName);
         const name = defaultCatLabel(rawName);
-        if (isSubscription) {
-          categoryMeta[id] = {
-            ...(categoryMeta[id] || {}),
-            isSubscription: true
-          };
-        }
+        categoryMeta[id] = {
+          ...(categoryMeta[id] || {}),
+          icon: defaultCategoryIconForRawName(rawName, group.name)
+        };
         return { id, name };
       })
   }));
@@ -1014,13 +1081,24 @@ function normalizeSubscriptionCategoryMeta() {
   let metaChanged = false;
   groups.forEach(grp => {
     grp.cats.forEach(cat => {
-      if (!/\[abonnement\]/i.test(cat.name)) return;
-      cat.name = cat.name.replace(/\s*\[abonnement\]\s*/i, '').trim();
-      categoryMeta[cat.id] = {
-        ...(categoryMeta[cat.id] || {}),
-        isSubscription: true
-      };
-      changed = true;
+      const originalName = cat.name;
+      const nextName = defaultCatLabel(originalName);
+      let catMetaChanged = false;
+      if (nextName && nextName !== cat.name) {
+        cat.name = nextName;
+        changed = true;
+      }
+      const nextMeta = { ...(categoryMeta[cat.id] || {}) };
+      if (nextMeta.isSubscription) {
+        delete nextMeta.isSubscription;
+        catMetaChanged = true;
+      }
+      if (!nextMeta.icon) {
+        nextMeta.icon = defaultCategoryIconForRawName(originalName, grp.name);
+        catMetaChanged = true;
+      }
+      if (!catMetaChanged) return;
+      categoryMeta[cat.id] = { ...nextMeta };
       metaChanged = true;
     });
   });
@@ -1103,12 +1181,10 @@ function renderStandardRestoreOptions() {
           ${group.cats.map(rawName => {
             const key = defaultCatKey(group.name, rawName);
             const label = defaultCatLabel(rawName);
-            const isSubscription = /\[abonnement\]/i.test(rawName);
             return `
               <label class="standard-choice-row">
                 <input type="checkbox" data-standard-cat="${appEscapeHtml(key)}" checked>
                 <span>${appEscapeHtml(label)}</span>
-                ${isSubscription ? '<em>Abonnement</em>' : ''}
               </label>`;
           }).join('')}
         </div>

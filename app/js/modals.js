@@ -1056,11 +1056,9 @@ function openCatCreateModal(grpId) {
   const titleEl = document.getElementById('cat-edit-title');
   const saveEl = document.getElementById('cat-edit-save');
   const nameEl = document.getElementById('cat-edit-name');
-  const subEl = document.getElementById('cat-edit-subscription');
   if (titleEl) titleEl.textContent = 'Nieuw potje';
   if (saveEl) saveEl.textContent = 'Potje toevoegen';
   if (nameEl) nameEl.value = '';
-  if (subEl) subEl.checked = false;
   renderCatIconPicker(defaultCategoryIconForGroup(grp));
   openModal('modal-cat-edit');
   setTimeout(() => nameEl?.focus(), 40);
@@ -1099,11 +1097,9 @@ function openCatEditModal(catId, grpId) {
   const titleEl = document.getElementById('cat-edit-title');
   const saveEl = document.getElementById('cat-edit-save');
   const nameEl = document.getElementById('cat-edit-name');
-  const subEl = document.getElementById('cat-edit-subscription');
   if (titleEl) titleEl.textContent = 'Potje bewerken';
   if (saveEl) saveEl.textContent = 'Opslaan';
   if (nameEl) nameEl.value = parts.label || cat.name;
-  if (subEl) subEl.checked = !!categoryMeta?.[cat.id]?.isSubscription;
   renderCatIconPicker(categoryMeta?.[cat.id]?.icon || defaultCategoryIconForGroup(groups.find(g => g.id === _editCatGrpId)));
   openModal('modal-cat-edit');
   setTimeout(() => nameEl?.focus(), 40);
@@ -1116,7 +1112,6 @@ function saveCatEdit() {
   const grp = groups.find(g => g.id === _editCatGrpId);
   if (isNew && !grp) return;
   const nameEl = document.getElementById('cat-edit-name');
-  const subEl = document.getElementById('cat-edit-subscription');
   const nextLabel = (nameEl?.value || '').trim();
   if (!nextLabel) { toast('Geef het potje een naam.'); return; }
 
@@ -1126,11 +1121,6 @@ function saveCatEdit() {
   const nextMeta = { ...(categoryMeta[targetCat.id] || {}) };
   if (_editCatIconKey && typeof CATEGORY_SVG_ICONS !== 'undefined' && CATEGORY_SVG_ICONS[_editCatIconKey]) {
     nextMeta.icon = _editCatIconKey;
-  }
-  if (subEl?.checked) {
-    nextMeta.isSubscription = true;
-  } else {
-    delete nextMeta.isSubscription;
   }
   if (Object.keys(nextMeta).length) categoryMeta[targetCat.id] = nextMeta;
   else delete categoryMeta[targetCat.id];
