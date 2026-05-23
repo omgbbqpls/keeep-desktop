@@ -2159,7 +2159,7 @@ function buildCatMeta({ cat, income, goal, goalTarget, budgeted, spent, availabl
       statusKey = status.rule.type === 'monthly' ? 'usedup-ok' : 'usedup';
       statusText = status.rule.type === 'monthly'
         ? `Uitgegeven · ${fmt(spentAbs)}`
-        : 'Opgemaakt';
+        : 'Uitgegeven';
       statusLeadingIcon = status.rule.type === 'monthly';
     } else if (spentAbs > 0) {
       if (status.rule.type === 'monthly') {
@@ -2185,7 +2185,7 @@ function buildCatMeta({ cat, income, goal, goalTarget, budgeted, spent, availabl
     if (available === 0) {
       // Geen doel, wel helemaal gebruikt: aandacht nodig, maar geen fout.
       statusKey  = 'usedup';
-      statusText = 'Opgemaakt';
+      statusText = 'Uitgegeven';
     } else {
       statusKey  = 'idle';
       statusText = '';
@@ -4032,7 +4032,7 @@ function refreshCatDetail() {
         : monthlySurplus > 0
         ? `${fmt(monthlySurplus)} over`
         : fundingStatus.isUsedUp
-        ? 'Opgemaakt'
+        ? 'Uitgegeven'
         : isNeeded
         ? `Nog ${fmt(togo)} nodig deze maand`
         : isTargetRule
