@@ -610,7 +610,6 @@ function ensureThreeBudgetGroups() {
     'spaardoelen / vrije ruimte',
     'noodzakelijk',
     'leuk & lekker',
-    'abonnementen',
   ];
   const hasLegacyGroups = groups.some(group => {
     const name = normalize(group.name);
@@ -634,7 +633,6 @@ function ensureThreeBudgetGroups() {
     if (name === 'needs' || name.includes('noodzakelijk')) return 'Vaste lasten';
     if (name === 'wants' || name.includes('leuk & lekker')) return 'Vrije ruimte';
     if (name.includes('spaardoelen'))         return 'Voor later';
-    if (name.includes('abonnementen'))        return 'Vaste lasten';
     if (name.includes('dagelijks'))           return 'Dagelijks leven';
     return null;
   };
