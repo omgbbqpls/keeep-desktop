@@ -1069,7 +1069,7 @@ function renderTransactions() {
       startInlineTxnEdit(tx.id);
     });
 
-    // × knop: direct verwijderen
+    // × knop: verwijderen na bevestiging
     tr.querySelector('.txn-del-btn').addEventListener('click', e => {
       e.stopPropagation();
       _deleteSingleTxn(tx.id);
@@ -1148,10 +1148,10 @@ function _clearTxnSelection() {
   renderTransactions();
 }
 
-function _deleteSingleTxn(id) {
+async function _deleteSingleTxn(id) {
   const tx = transactions.find(t => t.id === id);
   const isTransfer = !!tx?.transferId;
-  if (!confirm(isTransfer ? 'Overboeking verwijderen?' : 'Transactie verwijderen?')) return;
+  if (!await kConfirm(isTransfer ? 'Overboeking verwijderen?' : 'Transactie verwijderen?', 'Verwijderen', true)) return;
   pushUndo();
   _txnSelected.delete(id);
   transactions = isTransfer
@@ -1161,10 +1161,10 @@ function _deleteSingleTxn(id) {
   refreshDataViews();
 }
 
-function deleteSelectedTxns() {
+async function deleteSelectedTxns() {
   if (!_txnSelected.size) return;
   const n = _txnSelected.size;
-  if (!confirm(`${n} transactie${n !== 1 ? 's' : ''} verwijderen?`)) return;
+  if (!await kConfirm(`${n} transactie${n !== 1 ? 's' : ''} verwijderen?`, 'Verwijderen', true)) return;
   const transferIds = new Set(
     transactions
       .filter(t => _txnSelected.has(t.id) && t.transferId)
