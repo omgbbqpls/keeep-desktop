@@ -749,9 +749,9 @@ function updateTxnSummary(filtered) {
       <button class="btn-ghost" id="txn-clear-selected" onclick="_clearTxnSelection()">Deselecteren</button>
     </div>
     <div class="txn-summary-totals">
-      <span><em>Uitgaand</em><strong class="txn-summary-out">${fmt(totals.out)}</strong></span>
-      <span><em>Inkomend</em><strong class="txn-summary-in">${fmt(totals.in)}</strong></span>
-      <span><em>Netto</em><strong class="${net < 0 ? 'txn-summary-out' : net > 0 ? 'txn-summary-in' : ''}">${net < 0 ? '-' : ''}${fmt(Math.abs(net))}</strong></span>
+      <span><em>Uit</em><strong class="txn-summary-out">${fmt(totals.out)}</strong></span>
+      <span><em>In</em><strong class="txn-summary-in">${fmt(totals.in)}</strong></span>
+      <span><em>Verschil</em><strong class="${net < 0 ? 'txn-summary-out' : net > 0 ? 'txn-summary-in' : ''}">${net < 0 ? '-' : ''}${fmt(Math.abs(net))}</strong></span>
     </div>`;
   if (typeof updateUndoRedoState === 'function') updateUndoRedoState();
 }
@@ -2137,66 +2137,41 @@ function buildCatMeta({ cat, income, goal, goalTarget, budgeted, spent, availabl
   // Status-chip naast categorienaam
   let statusText = '';
   let statusKey  = 'idle';
-  let statusTitle = '';
-  let statusIconOnly = false;
   let statusLeadingIcon = false;
   if (available < 0) {
-    // Negatief: overschreden — toon uitgegeven van budget (YNAB-stijl)
     statusKey  = 'over';
-    statusText = `Tekort · ${fmt(Math.abs(available))}`;
+    statusText = `${fmt(Math.abs(available))} tekort`;
     statusLeadingIcon = true;
   } else if (!status.isManual && need > 0) {
     if (status.rule.type === 'targetByDate' && status.targetReached) {
-      statusKey = 'usedup-ok';
-      statusText = 'Doel behaald';
-      statusLeadingIcon = true;
+      statusKey = 'idle';
+      statusText = '';
     } else if (needLeft > 0) {
       statusKey = isUrgent ? 'need' : 'eventually';
-      statusText = `Nodig · ${fmt(needLeft)}`;
+      statusText = `Nog ${fmt(needLeft)} nodig`;
       statusLeadingIcon = true;
     } else if (status.isUsedUp) {
-      statusKey = status.rule.type === 'monthly' ? 'usedup-ok' : 'usedup';
-      statusText = status.rule.type === 'monthly'
-        ? `Uitgegeven · ${fmt(spentAbs)}`
-        : 'Uitgegeven';
-      statusLeadingIcon = status.rule.type === 'monthly';
+      statusKey = 'idle';
+      statusText = '';
     } else if (spentAbs > 0) {
-      if (status.rule.type === 'monthly') {
-        statusKey = 'usedup-ok';
-        statusText = `Uitgegeven · ${fmt(spentAbs)}`;
-        statusLeadingIcon = true;
-      } else {
-        statusKey = 'funded';
-        statusTitle = 'Gevuld';
-        statusIconOnly = true;
-      }
+      statusKey = 'idle';
+      statusText = '';
     } else {
-      statusKey = 'funded';
-      statusTitle = 'Gevuld';
-      statusIconOnly = true;
+      statusKey = 'idle';
+      statusText = '';
     }
   } else if (status.isManual) {
-    // Geen budget ingesteld
     statusKey  = 'idle';
     statusText = '';
   } else if (budgeted > 0) {
-    // Budget aanwezig: toon beschikbaar bedrag
-    if (available === 0) {
-      // Geen doel, wel helemaal gebruikt: aandacht nodig, maar geen fout.
-      statusKey  = 'usedup';
-      statusText = 'Uitgegeven';
-    } else {
-      statusKey  = 'idle';
-      statusText = '';
-    }
+    statusKey  = 'idle';
+    statusText = '';
   }
   const checkIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8"><circle cx="12" cy="12" r="9"/><path d="m8.5 12.3 2.2 2.2 4.8-5"/></svg>';
   const alertIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8"><circle cx="12" cy="12" r="9"/><line x1="12" y1="7" x2="12" y2="13"/><circle cx="12" cy="16.5" r=".8" fill="currentColor" stroke="none"/></svg>';
   const infoIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8"><circle cx="12" cy="12" r="9"/><line x1="12" y1="10" x2="12" y2="15.5"/><circle cx="12" cy="7.5" r=".8" fill="currentColor" stroke="none"/></svg>';
   const leadingIcon = statusKey === 'over' ? alertIcon : statusKey === 'need' || statusKey === 'eventually' ? infoIcon : checkIcon;
-  const statusHtml = statusIconOnly
-    ? `<span class="cat-status-chip cat-status-chip-icon cat-status-chip-${statusKey}" title="${statusTitle}" aria-label="${statusTitle}">${checkIcon}</span>`
-    : statusText
+  const statusHtml = statusText
     ? `<span class="cat-status-chip cat-status-chip-${statusKey}">${statusLeadingIcon ? `<span class="cat-status-chip-mark">${leadingIcon}</span>` : ''}${escapeHtml(statusText)}</span>`
     : '';
 
@@ -2252,8 +2227,12 @@ function buildAvailablePill({ available, budgeted = 0, goal, goalReached, isUrge
     tone = 'idle';
     icon = clockIcon;
   }
-  // Overspent: toon altijd als negatief bedrag (bijv. -€100,00)
-  const displayVal = isOverspent ? fmt(available) : fmt(Math.abs(available));
+  // Overspent: toon altijd als negatief bedrag (bijv. -€100,00).
+  const displayVal = isOverspent
+    ? fmt(available)
+    : tone === 'funded'
+    ? `${fmt(Math.abs(available))} over`
+    : fmt(Math.abs(available));
   return `<div class="cat-available"><span class="cat-pill cat-pill-${tone}"><span class="cat-pill-icon">${icon}</span><span class="cat-pill-val">${displayVal}</span></span></div>`;
 }
 
@@ -3266,6 +3245,8 @@ function renderInsights() {
   const nwPrev  = calcNetWorthThrough(monthKey(prevY, prevM) + '-31');
   const nwDelta = nwNow - nwPrev;
   const savings = incNow > 0 ? Math.round((incNow - spNow) / incNow * 100) : null;
+  const assignedNow = calcBudgetedTotalForMonth(currentYear, currentMonth);
+  const leftoverNow = incNow - spNow;
 
   // Uitgaven per groep
   const spendByGroup = groups
@@ -3297,6 +3278,11 @@ function renderInsights() {
   const nwSubtitle = nwDelta !== 0
     ? `${nwSign}${fmt(nwDelta)} t.o.v. ${maandNaam(prevY, prevM)}`
     : null;
+  const leftoverSign = leftoverNow >= 0 ? '+' : '';
+  grid.appendChild(insightCardKPI('Netto vermogen', fmt(nwNow), nwSubtitle || 'Totaal van rekeningen en bezittingen', nwNow >= 0 ? 'green' : 'red'));
+  grid.appendChild(insightCardKPI('Inkomen deze maand', fmt(incNow), `${fmt(assignedNow)} toegewezen`, 'green'));
+  grid.appendChild(insightCardKPI('Uitgaven deze maand', fmt(spNow), `${leftoverSign}${fmt(leftoverNow)} na uitgaven`, spNow > incNow && incNow > 0 ? 'red' : 'text'));
+  grid.appendChild(insightCardKPI('Spaarquote', savings == null ? '—' : `${savings}%`, savings == null ? 'Geen inkomen deze maand' : `${fmt(Math.max(0, leftoverNow))} niet uitgegeven`, savings != null && savings < 0 ? 'red' : 'purple'));
   grid.appendChild(insightCardNetworth(networthPerMonth, labels, innerW, fmt(nwNow), nwSubtitle, nwNow >= 0 ? 'green' : 'red'));
   grid.appendChild(insightCardIncomeVsSpent(incomePerMonth, spentPerMonth, labels, halfW));
   grid.appendChild(insightCardDonut(spendByGroup));
@@ -3328,7 +3314,7 @@ function insightCard(title, content, extraClass = '') {
 
 function insightCardKPI(label, value, sub, color) {
   const card = document.createElement('div');
-  card.className = 'insight-card insight-kpi';
+  card.className = 'insight-card insight-kpi insight-card-kpi';
   card.innerHTML = `
     <div class="insight-card-title">${label}</div>
     <div class="insight-kpi-value" style="color:var(--${color})">${value}</div>
@@ -3346,7 +3332,7 @@ function insightCardNetworth(data, labels, cardW = 800, valueStr = null, subStr 
   const chartLabels = useDaily ? dailyPoints.map(d => d.label)  : labels;
   const chartDates  = useDaily ? dailyPoints.map(d => d.date)   : labels;
 
-  const W = Math.max(400, cardW - 2), H = 220, PAD = { t: 16, r: 20, b: 36, l: 76 };
+  const W = Math.max(400, cardW - 2), H = 200, PAD = { t: 14, r: 20, b: 42, l: 76 };
   const canvas = makeCanvas(W, H);
   const ctx = canvas.getContext('2d');
   const iW = W - PAD.l - PAD.r;
@@ -3472,7 +3458,7 @@ function insightCardNetworth(data, labels, cardW = 800, valueStr = null, subStr 
   const titleHtml = valueStr
     ? `Netto Vermogen <span style="color:var(--${valueColor});font-size:18px;font-weight:700;margin-left:10px;text-transform:none;letter-spacing:0">${valueStr}</span>${subStr ? `<span style="color:var(--text3);font-size:11px;font-weight:400;margin-left:10px;text-transform:none;letter-spacing:0">${subStr}</span>` : ''}`
     : 'Netto Vermogen';
-  return insightCard(titleHtml, wrap, 'insight-card-full');
+  return insightCard(titleHtml, wrap, 'insight-card-full insight-chart-card');
 }
 
 // ── DAGELIJKS NETTO VERMOGEN BEREKENEN ────────────────────────────────────
@@ -3521,7 +3507,7 @@ function buildDailyNetworth() {
 
 // ── STAAFDIAGRAM: Inkomen vs Uitgaven ─────────────────────────────────────
 function insightCardIncomeVsSpent(income, spent, labels, cardW = 500) {
-  const W = Math.max(300, cardW - 2), H = 200, PAD = { t: 16, r: 20, b: 36, l: 76 };
+  const W = Math.max(300, cardW - 2), H = 180, PAD = { t: 14, r: 20, b: 44, l: 76 };
   const canvas = makeCanvas(W, H);
   const ctx = canvas.getContext('2d');
   const iW = W - PAD.l - PAD.r;
@@ -3609,14 +3595,14 @@ function insightCardIncomeVsSpent(income, spent, labels, cardW = 500) {
   canvas.addEventListener('mouseleave', () => { draw(); hideTooltip(tip); });
 
   const legend = document.createElement('div');
-  legend.style.cssText = 'display:flex;gap:16px;margin-top:8px;font-size:11px;';
+  legend.style.cssText = 'display:flex;gap:16px;margin-top:6px;font-size:11px;';
   legend.innerHTML = `<span style="color:var(--green)">■ Inkomen</span><span style="color:var(--red)">■ Uitgaven</span>`;
 
   const wrap = document.createElement('div');
   wrap.style.position = 'relative';
   wrap.appendChild(canvas);
   wrap.appendChild(legend);
-  return insightCard('Inkomen & Uitgaven', wrap, 'insight-card-half');
+  return insightCard('Inkomen & Uitgaven', wrap, 'insight-card-half insight-chart-card');
 }
 
 // ── TOOLTIP HELPERS ───────────────────────────────────────────────────────
@@ -3742,7 +3728,7 @@ function insightCardDonut(groups_data) {
   wrap.appendChild(legend);
 
   const mn = maandNaam(currentYear, currentMonth);
-  return insightCard(`Uitgaven per groep — ${mn}`, wrap, 'insight-card-half');
+  return insightCard(`Uitgaven per groep — ${mn}`, wrap, 'insight-card-half insight-chart-card');
 }
 
 // ── TOP CATEGORIEËN ───────────────────────────────────────────────────────
@@ -3954,7 +3940,7 @@ function refreshCatDetail() {
   const cashSpentEl = document.getElementById('cdp-cash-spent');
   const cashSpentLabel = document.getElementById('cdp-cash-spent-label');
   const showCreditSpent = getBudgetCreditAccounts().length > 0;
-  if (cashSpentLabel) cashSpentLabel.textContent = showCreditSpent ? 'Betaald zelf' : 'Betaald deze maand';
+  if (cashSpentLabel) cashSpentLabel.textContent = showCreditSpent ? 'Uitgegeven zelf' : 'Uitgegeven deze maand';
   if (cashSpentEl) {
     cashSpentEl.textContent = fmt(cashSpent);
     cashSpentEl.className = 'cdp-val ' + (cashSpent < 0 ? 'neg' : '');
@@ -4033,7 +4019,7 @@ function refreshCatDetail() {
         : fundingStatus.isUsedUp
         ? 'Uitgegeven'
         : isNeeded
-        ? `Nog ${fmt(togo)} nodig deze maand`
+        ? `Nog nodig`
         : isTargetRule
         ? 'Deze maand op schema'
         : 'Deze maand gevuld';
@@ -4069,8 +4055,8 @@ function refreshCatDetail() {
         : reached || fundingStatus.isUsedUp
         ? spentAbs > 0
           ? ''
-          : paidNote || `Je hebt genoeg toegewezen voor deze maand`
-        : `Je hebt ${fmt(fundingStatus.coverage)} beschikbaar van ${fmt(need)}`;
+          : paidNote || `Voor mei is dit potje volledig gevuld.`
+        : `Wijs nog ${fmt(togo)} toe om dit potje te vullen.`;
       noteEl.style.display = (useCompactMonthly || isTargetRule) && statusNoteText ? 'block' : 'none';
       noteEl.textContent = statusNoteText;
     }

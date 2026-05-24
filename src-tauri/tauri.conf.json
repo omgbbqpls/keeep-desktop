@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Keeep",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "identifier": "nl.keeep.app",
   "build": {
     "beforeDevCommand": "npm run server",
@@ -40,4 +40,3 @@
     }
   }
 }
-

@@ -125,10 +125,10 @@
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="13"/><circle cx="12" cy="16.5" r=".8" fill="currentColor" stroke="none"/></svg>
           <div>
             <span class="budget-overspend-title">Budget staat <span id="budget-overspend-amount"></span> rood</span>
-            <span class="budget-overspend-sub"> · Je hebt meer verdeeld dan beschikbaar is</span>
+            <span class="budget-overspend-sub">Je hebt meer toegewezen dan beschikbaar is.</span>
           </div>
         </div>
-        <button class="budget-overspend-btn" onclick="openFixOverspendModal()">Herstel overschrijding →</button>
+        <button class="budget-overspend-btn" onclick="openFixOverspendModal()">Overschrijding herstellen →</button>
       </div>
 
       <!-- Filter + zoek balk -->
@@ -172,7 +172,7 @@
             <div id="th-cat"><button class="budget-master-toggle" type="button" onclick="toggleAllGroups()" title="Alles open/dicht"><span id="budget-master-chevron">▼</span><span>Potje</span></button></div>
             <div id="th-available">Toegewezen</div>
             <div id="th-activity">Uitgegeven</div>
-            <div id="th-assigned">Beschikbaar</div>
+            <div id="th-assigned">Over</div>
           </div>
           <div id="budget-body"></div>
         </div>
@@ -214,11 +214,11 @@
                 <span class="cdp-val" id="cdp-budgeted"></span>
               </div>
               <div class="cdp-row">
-                <span class="cdp-lbl" id="cdp-cash-spent-label">Betaald zelf</span>
+                <span class="cdp-lbl" id="cdp-cash-spent-label">Uitgegeven zelf</span>
                 <span class="cdp-val" id="cdp-cash-spent"></span>
               </div>
               <div class="cdp-row" id="cdp-credit-spent-row">
-                <span class="cdp-lbl">Betaald op krediet</span>
+                <span class="cdp-lbl">Uitgegeven op krediet</span>
                 <span class="cdp-val" id="cdp-credit-spent"></span>
               </div>
             </div>
