@@ -660,10 +660,37 @@ function renderMoveFundingOptions() {
   }
 }
 
-function doMove() {
+function isTargetAmountGoal(catId) {
+  const status = typeof calcFundingRuleStatus === 'function'
+    ? calcFundingRuleStatus(catId)
+    : null;
+  return status?.rule?.type === 'targetByDate' && status.targetAmount > 0;
+}
+
+async function confirmTakingFromTargetGoal(catId, cents, confirmLabel = 'Toch verplaatsen') {
+  if (!catId || cents <= 0 || !isTargetAmountGoal(catId)) return true;
+
+  const status = calcFundingRuleStatus(catId);
+  const cat = findCat(catId);
+  const current = Math.max(0, status.targetProgress || calcCatAvailable(catId));
+  const target = status.targetAmount || 0;
+  const after = Math.max(0, current - cents);
+  const name = escapeHtml(cleanBudgetLabel(cat?.name || 'dit potje'));
+
+  return kConfirm(
+    `Je haalt geld uit <strong>${name}</strong>, terwijl daar een doelbedrag voor staat.<br><br>` +
+    `Je hebt nu <strong>${fmt(current)}</strong> van <strong>${fmt(target)}</strong> klaarstaan. ` +
+    `Na deze wijziging blijft er <strong>${fmt(after)}</strong> over voor je doel.<br><br>` +
+    `Dat kan natuurlijk, maar Keeep checkt even of dit echt de bedoeling is.`,
+    'Geld uit doelpotje halen?',
+    false,
+    confirmLabel
+  );
+}
+
+async function doMove() {
   const cents = parseBedrag(document.getElementById('move-amount').value);
   if (cents <= 0) { toast('Vul een bedrag in.'); return void 0; return; }
-  pushUndo();
 
   const fromId = document.getElementById('move-from').value;
   const toId   = document.getElementById('move-to').value;
@@ -677,7 +704,9 @@ function doMove() {
     toast('Niet genoeg beschikbaar om toe te wijzen.');
     return void 0; return;
   }
+  if (fromId !== MOVE_SOURCE_RTA && !await confirmTakingFromTargetGoal(fromId, cents)) return;
 
+  pushUndo();
   const bm  = getBudgetMonth(currentYear, currentMonth);
   const key = monthKey(currentYear, currentMonth);
   if (fromId !== MOVE_SOURCE_RTA) {
@@ -892,8 +921,8 @@ function goalUpdateCustomDate() {
   if (dateLabel) dateLabel.textContent = dateOn ? (mode === 'save' ? 'Met datum' : 'Met datum') : 'Zonder datum';
   if (helper) {
     helper.textContent = dateOn
-      ? 'Met datum rekent Keeep uit wat je per maand nodig hebt.'
-      : 'Zonder datum bewaakt Keeep alleen dat dit bedrag beschikbaar blijft.';
+      ? 'Met datum rekent Keeep uit wat je elke maand opzij moet zetten. Haal je geld uit dit potje, dan vragen we even of dat past bij je doel.'
+      : 'Zonder datum bewaakt Keeep je doelbedrag. Haal je geld uit dit potje, dan vragen we even of dat de bedoeling is.';
   }
   if (dateEl) {
     dateEl.disabled = !dateOn;

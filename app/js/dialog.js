@@ -122,12 +122,12 @@
   };
 
   // kConfirm — vervangt confirm(), geeft Promise<boolean>
-  window.kConfirm = function(msg, title = 'Bevestigen', danger = false) {
+  window.kConfirm = function(msg, title = 'Bevestigen', danger = false, confirmLabel = 'Bevestigen') {
     return openDialog({
       title, msg, kind: danger ? 'danger' : 'info',
       buttons: { items: [
         { label: 'Annuleren', value: false },
-        { label: 'Bevestigen', cls: danger ? 'danger' : 'primary', value: true }
+        { label: confirmLabel, cls: danger ? 'danger' : 'primary', value: true }
       ] }
     });
   };

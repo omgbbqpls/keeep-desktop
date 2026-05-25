@@ -1982,15 +1982,25 @@ function calcFundingRuleStatus(catId) {
     actionLabel = 'Maandbedrag aanpassen';
   } else if (rule.type === 'targetByDate') {
     const monthsLeft = monthsUntil(rule.targetDate);
+    const hasTargetDate = !!rule.targetDate;
     targetAmount = rule.targetAmount || 0;
     targetProgress = Math.max(0, available);
     targetReached = targetAmount > 0 && targetProgress >= targetAmount;
     targetOver = targetReached ? Math.max(0, targetProgress - targetAmount) : 0;
-    monthlyNeed = targetReached ? 0 : (monthsLeft > 0 ? Math.round(targetAmount / monthsLeft) : targetAmount);
+    coverage = targetProgress;
+    monthlyNeed = targetReached ? 0 : (hasTargetDate && monthsLeft > 0 ? Math.round(targetAmount / monthsLeft) : targetAmount);
     displayAmount = targetAmount;
     title = 'Doelbedrag';
-    headline = `${fmt(displayAmount)}${rule.targetDate ? ` vóór ${fmtDateNL(rule.targetDate)}` : ' beschikbaar houden'}`;
-    subline = targetReached ? '' : `${fmt(monthlyNeed)} per maand nodig`;
+    headline = targetReached
+      ? `Doel van ${fmt(displayAmount)} gehaald`
+      : hasTargetDate
+      ? `${fmt(displayAmount)} vóór ${fmtDateNL(rule.targetDate)}`
+      : `Doel van ${fmt(displayAmount)}`;
+    subline = targetReached
+      ? ''
+      : hasTargetDate
+      ? `${fmt(monthlyNeed)} per maand helpt je op schema te blijven`
+      : `${fmt(targetProgress)} staat klaar`;
     actionLabel = 'Doel aanpassen';
   }
 
@@ -2309,10 +2319,19 @@ function accTypeLabel(type) {
 }
 
 // ── BUDGET INPUT ──────────────────────────────────────────────────────────
-function setBudget(catId, rawVal) {
-  pushUndo();
+async function setBudget(catId, rawVal) {
   const cents = parseBedrag(rawVal);
   const bm    = getBudgetMonth(currentYear, currentMonth);
+  const current = Math.round((bm[catId] || 0) * 100);
+  const reduction = Math.max(0, current - cents);
+  if (reduction > 0 && typeof confirmTakingFromTargetGoal === 'function' && typeof isTargetAmountGoal === 'function' && isTargetAmountGoal(catId)) {
+    const ok = await confirmTakingFromTargetGoal(catId, reduction, 'Toch aanpassen');
+    if (!ok) {
+      refreshBudgetSurfaces();
+      return;
+    }
+  }
+  pushUndo();
   bm[catId]   = cents / 100;
   budgets[monthKey(currentYear, currentMonth)] = bm;
   S.set('budgets', budgets);
@@ -3969,6 +3988,7 @@ function refreshCatDetail() {
     }
 
     const isTargetRule = fundingStatus.rule.type === 'targetByDate';
+    const targetHasDate = isTargetRule && !!fundingStatus.rule.targetDate;
     const isMonthlyRule = fundingStatus.rule.type === 'monthly';
     const showMonthlyStatus = isMonthlyRule && available >= 0 && !isPanelOverspent;
     const monthlySurplus = isMonthlyRule && reached ? fundingStatus.surplus : 0;
@@ -4018,7 +4038,11 @@ function refreshCatDetail() {
           ? `Je doel is behaald. Er staat ${fmt(targetOver)} meer in dit potje dan nodig voor dit doel`
           : `Je doel is behaald`
         : isTargetRule && !targetReached && togo === 0
-        ? `Je hebt genoeg toegewezen om op schema te blijven voor dit doel`
+        ? targetHasDate
+          ? `Je hebt genoeg toegewezen om op schema te blijven voor dit doel`
+          : `Je doelbedrag staat klaar. Keeep helpt je het beschikbaar te houden.`
+        : isTargetRule && !targetHasDate
+        ? ''
         : isPanelOverspent
         ? `Er is meer uitgegeven dan beschikbaar was`
         : monthlySurplus > 0
@@ -4033,17 +4057,26 @@ function refreshCatDetail() {
       noteEl.style.display = (useCompactMonthly || isTargetRule) && statusNoteText ? 'block' : 'none';
       noteEl.textContent = statusNoteText;
     }
-    if (prevSpentLabel) prevSpentLabel.textContent = isTargetRule ? 'Deze maand nodig' : 'Toegewezen';
-    if (prevSpentEl) prevSpentEl.textContent = isTargetRule ? fmt(targetReached ? 0 : need) : fmt(funded);
-    if (needLabel) needLabel.textContent = isTargetRule ? 'Toegewezen' : 'Uitgegeven';
-    if (fundedLabel) fundedLabel.textContent = isTargetRule && targetReached ? 'Boven doel' : isTargetRule ? 'Nog toe te wijzen' : 'Beschikbaar';
-    document.getElementById('cdp-goal-need').textContent   = fmt(isTargetRule ? fundingStatus.targetProgress : spentAbs);
-    document.getElementById('cdp-goal-funded').textContent = fmt(isTargetRule ? targetReached ? targetOver : togo : available);
     const togoLabel = document.getElementById('cdp-goal-togo-label');
     const togoEl = document.getElementById('cdp-goal-togo');
+    const targetFooterRow = togoLabel?.closest('.cdp-row');
+    const targetDivider = targetFooterRow?.previousElementSibling?.classList?.contains('cdp-goal-divider')
+      ? targetFooterRow.previousElementSibling
+      : null;
+
+    if (prevSpentLabel) prevSpentLabel.textContent = isTargetRule ? (targetHasDate ? 'Deze maand nodig' : 'Doelbedrag') : 'Toegewezen';
+    if (prevSpentEl) prevSpentEl.textContent = isTargetRule ? fmt(targetHasDate ? (targetReached ? 0 : need) : fundingStatus.targetAmount) : fmt(funded);
+    if (needLabel) needLabel.textContent = isTargetRule ? 'Klaarstaand' : 'Uitgegeven';
+    if (fundedLabel) fundedLabel.textContent = isTargetRule && targetReached ? 'Boven doel' : isTargetRule ? 'Nog nodig' : 'Beschikbaar';
+    document.getElementById('cdp-goal-need').textContent   = fmt(isTargetRule ? fundingStatus.targetProgress : spentAbs);
+    document.getElementById('cdp-goal-funded').textContent = fmt(isTargetRule ? targetReached ? targetOver : togo : available);
+    if (targetFooterRow) targetFooterRow.style.display = isTargetRule && !targetHasDate ? 'none' : '';
+    if (targetDivider) targetDivider.style.display = isTargetRule && !targetHasDate ? 'none' : '';
     if (togoLabel) togoLabel.textContent = isPanelOverspent ? 'Tekort' : fundingStatus.rule.type === 'monthly' ? 'Maandbedrag' : 'Per maand nodig';
-    togoEl.textContent = isPanelOverspent ? fmt(Math.abs(available)) : fundingStatus.rule.type === 'monthly' ? fundingStatus.headline : fmt(targetReached ? 0 : need);
-    togoEl.className   = 'cdp-val ' + (isPanelOverspent ? 'neg' : togo === 0 ? 'pos' : '');
+    if (togoEl) {
+      togoEl.textContent = isPanelOverspent ? fmt(Math.abs(available)) : fundingStatus.rule.type === 'monthly' ? fundingStatus.headline : fmt(targetReached ? 0 : need);
+      togoEl.className   = 'cdp-val ' + (isPanelOverspent ? 'neg' : togo === 0 ? 'pos' : '');
+    }
 
     const aanvulBtn = document.getElementById('cdp-aanvul-btn');
     if (aanvulBtn) {
@@ -4395,7 +4428,10 @@ async function cdpResetAvailable() {
   const catId = _cdpCatId;
   const avail = calcCatAvailable(catId);
   if (avail <= 0) { toast('Beschikbaar is al 0 of negatief.'); return; }
-  const ok = await kConfirm(`${fmt(avail)} terug naar "Nog toe te wijzen"?`, 'Reset beschikbaar');
+  const isTargetGoal = typeof isTargetAmountGoal === 'function' && isTargetAmountGoal(catId);
+  const ok = isTargetGoal
+    ? await confirmTakingFromTargetGoal(catId, avail, 'Toch terugzetten')
+    : await kConfirm(`${fmt(avail)} terug naar "Nog toe te wijzen"?`, 'Reset beschikbaar');
   if (!ok) return;
   pushUndo();
   const bm = getBudgetMonth(currentYear, currentMonth);
@@ -4413,7 +4449,10 @@ async function cdpResetAssigned() {
   const catId = _cdpCatId;
   const current = calcCatBudgeted(catId);
   if (current <= 0) { toast('Geen budget om te resetten.'); return; }
-  const ok = await kConfirm(`${fmt(current)} terug naar "Nog toe te wijzen"?`, 'Reset budget');
+  const isTargetGoal = typeof isTargetAmountGoal === 'function' && isTargetAmountGoal(catId);
+  const ok = isTargetGoal
+    ? await confirmTakingFromTargetGoal(catId, current, 'Toch terugzetten')
+    : await kConfirm(`${fmt(current)} terug naar "Nog toe te wijzen"?`, 'Reset budget');
   if (!ok) return;
   pushUndo();
   const bm = getBudgetMonth(currentYear, currentMonth);
