@@ -107,13 +107,31 @@ function setFontScale(value) {
   const next = Math.max(85, Math.min(125, Math.round(Number(value) || 100)));
   uiFontScale = next;
   S.set('uiFontScale', uiFontScale);
-  document.documentElement.style.setProperty('--ui-font-scale', String(uiFontScale / 100));
+  const scale = uiFontScale / 100;
+  document.documentElement.style.setProperty('--ui-font-scale', String(scale));
+  document.body?.style.setProperty('zoom', String(scale));
   const label = document.getElementById('font-scale-label');
   if (label) label.textContent = `${uiFontScale}%`;
 }
 
 function changeFontScale(delta) {
   setFontScale((uiFontScale || 100) + delta);
+}
+
+function bindSettingsControls() {
+  const fontControls = document.querySelector('.settings-font-control');
+  if (fontControls && !fontControls.dataset.bound) {
+    const [smallerBtn, largerBtn] = fontControls.querySelectorAll('button');
+    smallerBtn?.addEventListener('click', event => {
+      event.preventDefault();
+      changeFontScale(-5);
+    });
+    largerBtn?.addEventListener('click', event => {
+      event.preventDefault();
+      changeFontScale(5);
+    });
+    fontControls.dataset.bound = '1';
+  }
 }
 
 // ── TOAST ─────────────────────────────────────────────────────────────────
@@ -406,7 +424,7 @@ function parseCsvPreview(text) {
 function doImportCsv() {
   const preview = document.getElementById('csv-preview');
   const raw = preview?.dataset.raw;
-  if (!raw) { toast('Laad eerst een CSV bestand.'); return; }
+  if (!raw) { toast('Laad eerst een CSV-bestand.'); return; }
 
   const accId = document.getElementById('csv-acc')?.value;
   if (!accId) { toast('Kies een rekening.'); return; }
@@ -878,6 +896,7 @@ async function init() {
   // Thema direct toepassen
   setTheme(appTheme);
   setFontScale(uiFontScale);
+  bindSettingsControls();
 
   // Native/app data laden, anders de lokale server gebruiken
   let loaded = false;
@@ -1276,5 +1295,19 @@ async function resetAll() {
 async function createNewBudget() {
   openStandardRestoreModal('new');
 }
+
+Object.assign(window, {
+  setTheme,
+  setFontScale,
+  changeFontScale,
+  exportBackup,
+  importBackup,
+  resetBudgets,
+  resetAll,
+  createNewBudget,
+  openStandardRestoreModal,
+  setStandardRestoreSelection,
+  confirmStandardRestore
+});
 
 init();

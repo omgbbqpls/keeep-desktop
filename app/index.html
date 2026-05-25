@@ -6,7 +6,7 @@
   <title>Keeep — Budget like you mean it</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="css/keeep.css?v=133">
+  <link rel="stylesheet" href="css/keeep.css?v=135">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0d0f14">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -124,11 +124,11 @@
         <div class="budget-overspend-left">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="13"/><circle cx="12" cy="16.5" r=".8" fill="currentColor" stroke="none"/></svg>
           <div>
-            <span class="budget-overspend-title">Budget staat <span id="budget-overspend-amount"></span> rood</span>
-            <span class="budget-overspend-sub">Je hebt meer toegewezen dan beschikbaar is.</span>
+            <span class="budget-overspend-title">Je hebt <span id="budget-overspend-amount"></span> meer toegewezen dan beschikbaar is.</span>
+            <span class="budget-overspend-sub" id="budget-overspend-sub">Verplaats geld of verlaag een potje om je maand weer kloppend te maken.</span>
           </div>
         </div>
-        <button class="budget-overspend-btn" onclick="openFixOverspendModal()">Overschrijding herstellen →</button>
+        <button class="budget-overspend-btn" onclick="openFixOverspendModal()">Budget in balans brengen →</button>
       </div>
 
       <!-- Filter + zoek balk -->
@@ -154,8 +154,8 @@
         <div class="bab-divider"></div>
         <div class="bab-filters">
           <button class="bfilter active" onclick="setBudgetFilter('all', this)">Alles</button>
-          <button class="bfilter" onclick="setBudgetFilter('underfunded', this)">Tekort</button>
-          <button class="bfilter" onclick="setBudgetFilter('overspent', this)">Overschreden</button>
+          <button class="bfilter" onclick="setBudgetFilter('underfunded', this)">Aandacht</button>
+          <button class="bfilter" onclick="setBudgetFilter('overspent', this)">Over budget</button>
           <button class="bfilter" onclick="setBudgetFilter('funded', this)">Gevuld</button>
         </div>
         <div class="bab-spacer"></div>
@@ -181,7 +181,7 @@
         <div class="cat-detail-panel" id="cat-detail-panel">
           <div class="cdp-empty" id="cdp-empty">
             <div class="cdp-empty-icon">←</div>
-            <div class="cdp-empty-label">Klik op een potje voor details</div>
+            <div class="cdp-empty-label">Kies een potje om details te zien</div>
           </div>
           <div class="cdp-content" id="cdp-content" style="display:none">
             <div class="cdp-header">
@@ -203,8 +203,9 @@
               </div>
               <div class="cdp-overspend-warning" id="cdp-overspend-warning" style="display:none">
                 <div class="cdp-overspend-text" id="cdp-overspend-text"></div>
-                <button class="cdp-overspend-btn" onclick="cdpCoverOverspending()" type="button">Tekort oplossen</button>
+                <button class="cdp-overspend-btn" onclick="cdpCoverOverspending()" type="button">Budget in balans brengen</button>
               </div>
+              <div class="cdp-summary-label">Opbouw</div>
               <div class="cdp-row">
                 <span class="cdp-lbl">Meegenomen</span>
                 <span class="cdp-val" id="cdp-cash-leftover"></span>
@@ -214,11 +215,11 @@
                 <span class="cdp-val" id="cdp-budgeted"></span>
               </div>
               <div class="cdp-row">
-                <span class="cdp-lbl" id="cdp-cash-spent-label">Uitgegeven zelf</span>
+                <span class="cdp-lbl" id="cdp-cash-spent-label">Zelf uitgegeven</span>
                 <span class="cdp-val" id="cdp-cash-spent"></span>
               </div>
               <div class="cdp-row" id="cdp-credit-spent-row">
-                <span class="cdp-lbl">Uitgegeven op krediet</span>
+                <span class="cdp-lbl">Op krediet uitgegeven</span>
                 <span class="cdp-val" id="cdp-credit-spent"></span>
               </div>
             </div>
@@ -545,7 +546,7 @@
         <select id="csv-acc"></select>
       </div>
       <div class="form-row">
-        <label>CSV bestand</label>
+        <label>CSV-bestand</label>
         <input type="file" id="csv-file" accept=".csv"
           onchange="handleCsvUpload(this.files[0])">
       </div>
@@ -585,9 +586,9 @@
             <div class="settings-reset-desc">Maak tekst in de app groter of kleiner op dit apparaat.</div>
           </div>
           <div class="settings-font-control" role="group" aria-label="Tekstgrootte">
-            <button type="button" onclick="changeFontScale(-5)" aria-label="Tekst kleiner">−</button>
+            <button type="button" aria-label="Tekst kleiner">−</button>
             <span id="font-scale-label">100%</span>
-            <button type="button" onclick="changeFontScale(5)" aria-label="Tekst groter">+</button>
+            <button type="button" aria-label="Tekst groter">+</button>
           </div>
         </div>
       </section>
@@ -655,7 +656,7 @@
       <p class="standard-restore-intro" id="standard-restore-intro">Kies welke standaardpotjes je wilt terugzetten.</p>
       <div class="standard-restore-actions">
         <button class="btn-secondary" onclick="setStandardRestoreSelection(true)" type="button">Alles kiezen</button>
-        <button class="btn-secondary" onclick="setStandardRestoreSelection(false)" type="button">Alles uit</button>
+        <button class="btn-secondary" onclick="setStandardRestoreSelection(false)" type="button">Alles deselecteren</button>
       </div>
       <div class="standard-choice-wrap" id="standard-restore-options"></div>
     </div>
@@ -717,7 +718,7 @@
       <!-- Maandelijks -->
       <div class="goal-pane" data-pane="monthly">
         <div class="goal-field">
-          <label class="goal-label">Voor</label>
+          <label class="goal-label">Aanvullen op</label>
           <select id="goal-monthday" class="goal-input">
             <option value="last" selected>Laatste dag van de maand</option>
             <option value="1">De 1e</option>
@@ -729,13 +730,11 @@
             <option value="28">De 28e</option>
           </select>
         </div>
-        <div class="goal-field">
-          <label class="goal-label">Volgende maand wil ik</label>
-          <select id="goal-monthly-next" class="goal-input">
-            <option value="refill">Aanvullen tot het bedrag</option>
-            <option value="set">Het bedrag opnieuw toewijzen</option>
-          </select>
-        </div>
+        <select id="goal-monthly-next" class="goal-hidden-default" aria-hidden="true" tabindex="-1">
+          <option value="refill" selected>Aanvullen tot het bedrag</option>
+          <option value="set">Het bedrag opnieuw toewijzen</option>
+        </select>
+        <div class="goal-helper">Keeep vult dit potje elke maand aan tot dit bedrag.</div>
       </div>
 
       <!-- Jaarlijks -->
@@ -756,20 +755,22 @@
       <!-- Aangepast -->
       <div class="goal-pane" data-pane="custom" style="display:none">
         <input type="hidden" id="goal-custom-mode" value="save">
-        <label class="goal-check-row">
-          <input type="checkbox" id="goal-custom-no-date" onchange="goalUpdateCustomDate()" checked>
-          <span>Doeldatum</span>
-        </label>
         <div class="goal-field">
-          <label class="goal-label" id="goal-custom-date-label">Doeldatum</label>
+          <div class="goal-field-head">
+            <label class="goal-check-row">
+              <input type="checkbox" id="goal-custom-no-date" onchange="goalUpdateCustomDate()" checked>
+              <span>Doeldatum</span>
+            </label>
+            <span class="goal-field-hint" id="goal-custom-date-label">Met datum</span>
+          </div>
           <input type="date" id="goal-custom-date" class="goal-input">
         </div>
-        <div class="goal-helper">Met datum rekent Keeep uit wat je per maand nodig hebt. Zonder datum bewaakt Keeep dat dit bedrag beschikbaar blijft.</div>
+        <div class="goal-helper" id="goal-custom-helper">Met datum rekent Keeep uit wat je per maand nodig hebt.</div>
       </div>
 
       <div class="goal-pane" data-pane="manual" style="display:none">
         <div class="goal-helper">
-          Dit potje wordt niet automatisch aangevuld.
+          Je bepaalt zelf wanneer en hoeveel je toewijst.
         </div>
       </div>
     </div>
@@ -836,8 +837,8 @@
 <script src="js/state.js?v=35"></script>
 <script src="js/format.js?v=12"></script>
 <script src="js/render.js?v=163"></script>
-<script src="js/modals.js?v=70"></script>
-<script src="js/app.js?v=60"></script>
+<script src="js/modals.js?v=72"></script>
+<script src="js/app.js?v=63"></script>
 <script>
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch(() => {});

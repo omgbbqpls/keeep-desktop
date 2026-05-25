@@ -935,7 +935,7 @@ function saveInlineTxn() {
 
   if (!accId) { toast('Kies een rekening.'); return; }
   if (!target) { toast('Kies een potje of rekening.'); return; }
-  if (outflow > 0 && inflow > 0) { toast('Gebruik uitgaand of inkomend, niet allebei.'); return; }
+  if (outflow > 0 && inflow > 0) { toast('Kies één bedrag: uitgaand of inkomend.'); return; }
   if (outflow <= 0 && inflow <= 0) { toast('Vul een bedrag in.'); return; }
   if (toAccId && accId === toAccId) { toast('Van en naar zijn dezelfde rekening.'); return; }
   if (toAccId && inflow > 0) { toast('Gebruik Uitgaand voor een overboeking naar een eigen rekening.'); return; }
@@ -1202,7 +1202,7 @@ function renderAccounts() {
       </div>
       <div class="acc-bal ${bal < 0 ? 'neg' : 'pos'}">${fmt(bal)}</div>
       <div class="acc-card-actions">
-        <button class="acc-csv-btn" disabled title="Tijdelijk uitgeschakeld" style="opacity:.4;cursor:not-allowed;">↑ CSV Import</button>
+        <button class="acc-csv-btn" disabled title="Tijdelijk uitgeschakeld" style="opacity:.4;cursor:not-allowed;">↑ CSV importeren</button>
         <button class="acc-del-btn" onclick="_accDelete('${acc.id}')">🗑</button>
       </div>`;
     card.addEventListener('contextmenu', e => showAccCtxMenu(e, acc.id));
@@ -1491,9 +1491,11 @@ function renderAvailabilityMode(rta) {
 
   const banner     = document.getElementById('budget-overspend-banner');
   const amountSpan = document.getElementById('budget-overspend-amount');
+  const sub        = document.getElementById('budget-overspend-sub');
   if (!banner) return;
   if (rta < 0) {
     if (amountSpan) amountSpan.textContent = fmt(Math.abs(rta));
+    if (sub) sub.textContent = 'Verplaats geld of verlaag een potje om je maand weer kloppend te maken.';
     banner.style.display = 'flex';
   } else {
     banner.style.display = 'none';
@@ -2227,12 +2229,8 @@ function buildAvailablePill({ available, budgeted = 0, goal, goalReached, isUrge
     tone = 'idle';
     icon = clockIcon;
   }
-  // Overspent: toon altijd als negatief bedrag (bijv. -€100,00).
-  const displayVal = isOverspent
-    ? fmt(available)
-    : tone === 'funded'
-    ? `${fmt(Math.abs(available))} over`
-    : fmt(Math.abs(available));
+  // Rood en het waarschuwingsicoon dragen de tekortstatus; geen minteken nodig.
+  const displayVal = fmt(Math.abs(available));
   return `<div class="cat-available"><span class="cat-pill cat-pill-${tone}"><span class="cat-pill-icon">${icon}</span><span class="cat-pill-val">${displayVal}</span></span></div>`;
 }
 
@@ -2245,54 +2243,32 @@ function buildCatBar({ budgeted, available, isOverspent, spent, goal = null, nee
   const spentAbs = Math.abs(spent || 0);
 
   if (isOverspent) {
-    if (budgeted > 0 && spentAbs > 0) {
-      const fundedPct = Math.round(Math.min(budgeted / spentAbs, 1) * 100);
-      const overPct   = Math.max(0, 100 - fundedPct);
-      return `<div class="cat-bar cat-bar-over-split">
-                <div class="cat-bar-split-green" style="width:${fundedPct}%"></div>
-                <div class="cat-bar-split-red" style="width:${overPct}%"></div>
-              </div>`;
-    }
     return `<div class="cat-bar cat-bar-over"><div class="cat-bar-fill" style="width:100%"></div></div>`;
   }
 
   if (fundingStatus?.rule?.type === 'monthly' && need > 0) {
     const coverage = Math.max(0, fundingStatus.coverage || 0);
     const denominator = Math.max(need, coverage, 1);
-    const fullyFunded = fundingStatus.isFunded;
-    const fullySpent = fullyFunded && available === 0 && spentAbs > 0;
-    const availablePct = Math.max(0, Math.min(100, Math.round(Math.max(available, 0) / denominator * 100)));
-    const tone = fullySpent ? 'spent' : !fullyFunded ? 'need' : availablePct <= 25 && available > 0 ? 'low' : 'funded';
-    if (coverage > 0) return buildCatBudgetSplitBar({ budgeted: coverage, available, spentAbs, denominator, tone });
-    return `<div class="cat-bar cat-bar-${tone}"><div class="cat-bar-fill" style="width:0%"></div></div>`;
+    return buildCatAvailableBar({ available, denominator });
   }
 
   if (goal && need > 0) {
-    const pct = Math.max(0, Math.min(100, Math.round(budgeted / need * 100)));
-    const fullyFunded = budgeted >= need;
-    const fullySpent = fullyFunded && available === 0 && spentAbs > 0;
-    const tone = fullySpent ? 'spent' : fullyFunded ? 'funded' : 'need';
-    if (budgeted > 0) return buildCatBudgetSplitBar({ budgeted, available, spentAbs, denominator: need, tone });
-    return `<div class="cat-bar cat-bar-${tone}"><div class="cat-bar-fill" style="width:${pct}%"></div></div>`;
+    return buildCatAvailableBar({ available, denominator: need });
   }
 
   if (budgeted > 0) {
-    const fullySpent = available === 0 && spentAbs > 0;
-    const availPct = Math.max(0, Math.min(100, Math.round(Math.max(available, 0) / budgeted * 100)));
-    const tone = fullySpent ? 'spent' : availPct <= 25 ? 'low' : 'funded';
-    return buildCatBudgetSplitBar({ budgeted, available, spentAbs, denominator: budgeted, tone });
+    return buildCatAvailableBar({ available, denominator: budgeted });
   }
 
   return `<div class="cat-bar cat-bar-idle"><div class="cat-bar-fill" style="width:0%"></div></div>`;
 }
 
-function buildCatBudgetSplitBar({ budgeted, available, spentAbs, denominator, tone }) {
-  const base = Math.max(denominator || budgeted || 0, 1);
-  const spentPct = Math.max(0, Math.min(100, Math.round(spentAbs / base * 100)));
-  const availablePct = Math.max(0, Math.min(100 - spentPct, Math.round(Math.max(available, 0) / base * 100)));
-  return `<div class="cat-bar cat-bar-${tone} cat-bar-budget-split" title="Uitgegeven ${fmt(spentAbs)} · Beschikbaar ${fmt(Math.max(available, 0))}">
-            <div class="cat-bar-available-seg" style="width:${availablePct}%"></div>
-            <div class="cat-bar-spent-seg" style="width:${spentPct}%"></div>
+function buildCatAvailableBar({ available, denominator }) {
+  const base = Math.max(denominator || 0, 1);
+  const availablePct = Math.max(0, Math.min(100, Math.round(Math.max(available, 0) / base * 100)));
+  const tone = availablePct > 0 ? 'funded' : 'idle';
+  return `<div class="cat-bar cat-bar-${tone}" title="Beschikbaar ${fmt(Math.max(available, 0))}">
+            <div class="cat-bar-fill" style="width:${availablePct}%"></div>
           </div>`;
 }
 
@@ -2683,7 +2659,7 @@ function autoCoverShortages() {
   budgets[key] = bm;
   S.set('budgets', budgets);
   refreshBudgetSurfaces();
-  toast('Tekorten gedekt.');
+  toast('De potjes zijn weer aangevuld.');
   return true;
 }
 
@@ -2804,7 +2780,7 @@ function renderAssignMenu() {
     smartPane.innerHTML = `
       <div class="assign-smart-list">
         ${smartCard({
-          title: 'Tekorten aanvullen',
+          title: 'Potjes met aandacht vullen',
           text: underfundedText,
           amount: underfunded,
           action: 'assignUnderfunded()',
@@ -2872,7 +2848,7 @@ function assignManual() {
   const rta = calcReadyToAssign();
   if (!catId) { toast('Kies een potje.'); return; }
   if (cents <= 0) { toast('Vul een bedrag in.'); return; }
-  if (cents > rta) { toast('Niet genoeg toe te wijzen.'); return; }
+  if (cents > rta) { toast('Er staat nog niet genoeg klaar om dit toe te wijzen.'); return; }
 
   pushUndo();
   const bm = getBudgetMonth(currentYear, currentMonth);
@@ -3648,7 +3624,7 @@ function insightCardDonut(groups_data) {
       ctx.fillStyle = cssVar('--text3');
       ctx.font = '12px ' + cssVar('--font-body');
       ctx.textAlign = 'center';
-      ctx.fillText('Geen uitgaven', cx, cy + 4);
+      ctx.fillText('Nog geen uitgaven', cx, cy + 4);
       return;
     }
     slices.forEach(({ start, end, color }, i) => {
@@ -3736,7 +3712,7 @@ function insightCardTopCats(cats) {
   const wrap = document.createElement('div');
 
   if (!cats.length) {
-    wrap.innerHTML = '<p style="color:var(--text3);font-size:12px;">Geen activiteit deze maand.</p>';
+    wrap.innerHTML = '<p style="color:var(--text3);font-size:12px;">Nog geen activiteit deze maand.</p>';
     return insightCard(`Top potjes — ${maandNaam(currentYear, currentMonth)}`, wrap, 'insight-card-full');
   }
 
@@ -3757,7 +3733,7 @@ function insightCardTopCats(cats) {
     if (!items.length) {
       const empty = document.createElement('div');
       empty.style.cssText = 'font-size:11px;color:var(--text3);';
-      empty.textContent = 'Geen activiteit';
+      empty.textContent = 'Nog geen activiteit';
       col.appendChild(empty);
       return col;
     }
@@ -3918,17 +3894,14 @@ function refreshCatDetail() {
   const goal      = activeGoal ? rawGoal : null;
   const fundingStatus = calcFundingRuleStatus(catId);
   const spentAbs  = Math.abs(spent);
-  const budgetSpentPct = budgeted > 0 ? Math.min(100, Math.round(spentAbs / budgeted * 100)) : 0;
-  const budgetAvailPct = budgeted > 0 ? Math.max(0, 100 - budgetSpentPct) : 0;
-  const budgetTone = budgetRemainingTone(!income && available < 0, budgetAvailPct);
 
   // Header
   document.getElementById('cdp-name').textContent = cleanBudgetLabel(cat.name);
 
   // Waarden
   const availEl = document.getElementById('cdp-available');
-  availEl.textContent = fmt(available);
-  availEl.className = 'cdp-val ' + (!income && budgeted > 0 ? `tone-${budgetTone}` : available < 0 ? 'neg' : available > 0 ? 'pos' : '');
+  availEl.textContent = available < 0 ? fmt(Math.abs(available)) : fmt(available);
+  availEl.className = 'cdp-val ' + (available < 0 ? 'neg' : available > 0 ? 'pos' : 'muted');
   const isPanelOverspent = !income && available < 0;
 
   const leftOverEl = document.getElementById('cdp-cash-leftover');
@@ -3940,24 +3913,24 @@ function refreshCatDetail() {
   const cashSpentEl = document.getElementById('cdp-cash-spent');
   const cashSpentLabel = document.getElementById('cdp-cash-spent-label');
   const showCreditSpent = getBudgetCreditAccounts().length > 0;
-  if (cashSpentLabel) cashSpentLabel.textContent = showCreditSpent ? 'Uitgegeven zelf' : 'Uitgegeven deze maand';
+  if (cashSpentLabel) cashSpentLabel.textContent = showCreditSpent ? 'Zelf uitgegeven' : 'Uitgegeven deze maand';
   if (cashSpentEl) {
     cashSpentEl.textContent = fmt(cashSpent);
-    cashSpentEl.className = 'cdp-val ' + (cashSpent < 0 ? 'neg' : '');
+    cashSpentEl.className = 'cdp-val';
   }
   const creditSpentEl = document.getElementById('cdp-credit-spent');
   const creditSpentRow = document.getElementById('cdp-credit-spent-row');
   if (creditSpentRow) creditSpentRow.style.display = showCreditSpent ? '' : 'none';
   if (creditSpentEl) {
     creditSpentEl.textContent = fmt(creditSpent);
-    creditSpentEl.className = 'cdp-val ' + (creditSpent < 0 ? 'neg' : '');
+    creditSpentEl.className = 'cdp-val';
   }
   const overspendWarning = document.getElementById('cdp-overspend-warning');
   const overspendText = document.getElementById('cdp-overspend-text');
   if (overspendWarning && overspendText) {
     overspendWarning.style.display = isPanelOverspent ? 'block' : 'none';
     if (isPanelOverspent) {
-      overspendText.innerHTML = `Er is meer uitgegeven dan beschikbaar was. Los het tekort van <strong>${fmt(Math.abs(available))}</strong> op door geld uit een ander potje te verplaatsen.`;
+      overspendText.innerHTML = `Er is meer uitgegeven dan beschikbaar was. Breng dit potje in balans door <strong>${fmt(Math.abs(available))}</strong> uit een ander potje te verplaatsen.`;
     } else {
       overspendText.textContent = '';
     }
@@ -4075,7 +4048,7 @@ function refreshCatDetail() {
     const aanvulBtn = document.getElementById('cdp-aanvul-btn');
     if (aanvulBtn) {
       aanvulBtn.disabled = isPanelOverspent || monthlySurplus > 0 || targetOver > 0 ? false : togo === 0;
-      aanvulBtn.textContent = isPanelOverspent ? 'Tekort oplossen' : targetOver > 0 ? 'Extra bedrag verplaatsen' : monthlySurplus > 0 ? 'Geld verplaatsen' : isMonthlyRule ? 'Automatisch aanvullen' : `Aanvullen met ${fmt(togo)}`;
+      aanvulBtn.textContent = isPanelOverspent ? 'Budget in balans brengen' : targetOver > 0 ? 'Extra bedrag verplaatsen' : monthlySurplus > 0 ? 'Geld verplaatsen' : isMonthlyRule ? 'Automatisch aanvullen' : `Aanvullen met ${fmt(togo)}`;
       aanvulBtn.onclick = isPanelOverspent ? cdpCoverOverspending : targetOver > 0 ? () => openMoveModal(catId, 'cat') : monthlySurplus > 0 ? () => openMoveModal(catId, 'cat') : cdpAanvul;
     }
     const editBtn = document.getElementById('cdp-goal-edit-btn');
@@ -4181,7 +4154,7 @@ function cdpAanvul() {
   }
   if (needed <= 0) { toast('Dit potje is al volledig aangevuld.'); return; }
   if (rta < needed) {
-    alertModal(`Onvoldoende saldo — er is ${fmt(rta)} nog toe te wijzen, maar ${fmt(needed)} nodig om dit potje volledig te vullen.`);
+    alertModal(`Nog niet genoeg beschikbaar — er is ${fmt(rta)} nog toe te wijzen, maar ${fmt(needed)} nodig om dit potje volledig te vullen.`);
     return;
   }
   pushUndo();

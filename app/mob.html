@@ -160,8 +160,8 @@
         <div class="bab-divider"></div>
         <div class="bab-filters">
           <button class="bfilter active" onclick="setBudgetFilter('all', this)">Alles</button>
-          <button class="bfilter" onclick="setBudgetFilter('underfunded', this)">Tekort</button>
-          <button class="bfilter" onclick="setBudgetFilter('overspent', this)">Overschreden</button>
+          <button class="bfilter" onclick="setBudgetFilter('underfunded', this)">Aandacht</button>
+          <button class="bfilter" onclick="setBudgetFilter('overspent', this)">Over budget</button>
           <button class="bfilter" onclick="setBudgetFilter('funded', this)">Gevuld</button>
         </div>
         <div class="bab-spacer"></div>
@@ -209,7 +209,7 @@
               </div>
               <div class="cdp-overspend-warning" id="cdp-overspend-warning" style="display:none">
                 <div class="cdp-overspend-text" id="cdp-overspend-text"></div>
-                <button class="cdp-overspend-btn" onclick="cdpCoverOverspending()" type="button">Tekort oplossen</button>
+                <button class="cdp-overspend-btn" onclick="cdpCoverOverspending()" type="button">Budget in balans brengen</button>
               </div>
               <div class="cdp-row">
                 <span class="cdp-lbl">Meegenomen</span>
@@ -557,7 +557,7 @@
         <select id="csv-acc"></select>
       </div>
       <div class="form-row">
-        <label>CSV bestand</label>
+        <label>CSV-bestand</label>
         <input type="file" id="csv-file" accept=".csv"
           onchange="handleCsvUpload(this.files[0])">
       </div>
@@ -638,7 +638,7 @@
       <p class="standard-restore-intro" id="standard-restore-intro">Kies welke standaardcategorieën je wilt terugzetten.</p>
       <div class="standard-restore-actions">
         <button class="btn-secondary" onclick="setStandardRestoreSelection(true)" type="button">Alles kiezen</button>
-        <button class="btn-secondary" onclick="setStandardRestoreSelection(false)" type="button">Alles uit</button>
+        <button class="btn-secondary" onclick="setStandardRestoreSelection(false)" type="button">Alles deselecteren</button>
       </div>
       <div class="standard-choice-wrap" id="standard-restore-options"></div>
     </div>

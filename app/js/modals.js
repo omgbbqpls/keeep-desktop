@@ -13,6 +13,9 @@ function onAccTypeChange() {
 function openModal(id) {
   const el = document.getElementById(id);
   if (el) el.classList.add('active');
+  if (id === 'modal-settings' && typeof bindSettingsControls === 'function') {
+    bindSettingsControls();
+  }
 }
 
 function closeModal(id) {
@@ -506,10 +509,10 @@ function setMovePurpose(purpose = 'move', details = {}) {
   if (purpose === 'shortage') {
     const catName = details.catName || 'dit potje';
     const amount = details.amount || 0;
-    if (titleEl) titleEl.textContent = 'Tekort oplossen';
+    if (titleEl) titleEl.textContent = 'Budget in balans brengen';
     if (contextEl) {
       contextEl.style.display = 'block';
-      contextEl.innerHTML = `Je komt <strong>${fmt(amount)}</strong> tekort in ${escapeHtml(catName)}. Kies uit welk potje je geld wilt verplaatsen.`;
+      contextEl.innerHTML = `Er is <strong>${fmt(amount)}</strong> nodig in ${escapeHtml(catName)}. Kies uit welk potje je geld wilt verplaatsen.`;
     }
     if (submitBtn) submitBtn.textContent = `Verplaats ${fmt(amount)}`;
   } else {
@@ -574,7 +577,7 @@ function renderMoveFundingOptions() {
   const neededEl = document.getElementById('move-source-needed');
   if (neededEl) neededEl.textContent = amount > 0 ? `Nodig: ${fmt(amount)}` : '';
   const submitBtn = document.getElementById('move-submit-btn');
-  if (submitBtn && _movePurpose === 'shortage') submitBtn.textContent = amount > 0 ? `Verplaats ${fmt(amount)}` : 'Verplaats tekort';
+  if (submitBtn && _movePurpose === 'shortage') submitBtn.textContent = amount > 0 ? `Verplaats ${fmt(amount)}` : 'Bedrag verplaatsen';
 
   list.innerHTML = '';
   let count = 0;
@@ -595,12 +598,7 @@ function renderMoveFundingOptions() {
     const amountEl = document.createElement('span');
     amountEl.className = 'move-source-amount';
     amountEl.textContent = fmt(rta);
-    const badgeEl = document.createElement('span');
-    badgeEl.className = 'move-source-badge';
-    badgeEl.textContent = amount > 0
-      ? (canFullyCover ? 'Eerst gebruiken' : 'Deels')
-      : 'Vrij geld';
-    button.append(nameEl, amountEl, badgeEl);
+    button.append(nameEl, amountEl);
     button.onclick = () => {
       const fromSel = document.getElementById('move-from');
       if (fromSel) fromSel.value = MOVE_SOURCE_RTA;
@@ -646,12 +644,7 @@ function renderMoveFundingOptions() {
         const amountEl = document.createElement('span');
         amountEl.className = 'move-source-amount';
         amountEl.textContent = fmt(available);
-        const badgeEl = document.createElement('span');
-        badgeEl.className = 'move-source-badge';
-        badgeEl.textContent = amount > 0
-          ? (canFullyCover ? 'Veilig' : canPartlyCover ? 'Deels' : 'Geen ruimte')
-          : 'Ruimte';
-        button.append(nameEl, amountEl, badgeEl);
+        button.append(nameEl, amountEl);
         button.onclick = () => {
           const fromSel = document.getElementById('move-from');
           if (fromSel) fromSel.value = cat.id;
@@ -875,11 +868,11 @@ function goalSwitchTab(tab) {
     b.classList.toggle('active', b.dataset.tab === tab);
   });
   document.querySelectorAll('#modal-goal .goal-pane').forEach(p => {
-    p.style.display = p.dataset.pane === tab ? 'block' : 'none';
+    p.style.display = p.dataset.pane === tab ? 'flex' : 'none';
   });
   // Pas hoofd-label aan
   const lbl = document.getElementById('goal-amount-label');
-  if (lbl) lbl.textContent = tab === 'custom' ? 'Doelbedrag' : tab === 'manual' ? 'Bedrag' : 'Bedrag per maand';
+  if (lbl) lbl.textContent = tab === 'custom' ? 'Doelbedrag' : tab === 'manual' ? 'Bedrag' : 'Maandbedrag';
   const amountField = document.getElementById('goal-amount')?.closest('.goal-field');
   if (amountField) amountField.style.display = tab === 'manual' ? 'none' : 'flex';
 }
@@ -894,8 +887,14 @@ function goalUpdateCustomDate() {
   const mode = document.getElementById('goal-custom-mode')?.value || 'fillup';
   const dateEl = document.getElementById('goal-custom-date');
   const dateLabel = document.getElementById('goal-custom-date-label');
+  const helper = document.getElementById('goal-custom-helper');
   const dateOn = document.getElementById('goal-custom-no-date')?.checked !== false;
-  if (dateLabel) dateLabel.textContent = mode === 'save' ? 'Doeldatum' : 'Op';
+  if (dateLabel) dateLabel.textContent = dateOn ? (mode === 'save' ? 'Met datum' : 'Met datum') : 'Zonder datum';
+  if (helper) {
+    helper.textContent = dateOn
+      ? 'Met datum rekent Keeep uit wat je per maand nodig hebt.'
+      : 'Zonder datum bewaakt Keeep alleen dat dit bedrag beschikbaar blijft.';
+  }
   if (dateEl) {
     dateEl.disabled = !dateOn;
     dateEl.style.opacity = dateOn ? '' : '.45';
@@ -1542,7 +1541,7 @@ async function aanvulGoal(e, catId, manualCents = null) {
   refreshDataViews();
 
   if (toAdd < needed) {
-    alertModal(`Gedeeltelijk aangevuld — ${fmt(needed - toAdd)} tekort om dit potje volledig te vullen.`);
+    alertModal(`Gedeeltelijk aangevuld — nog ${fmt(needed - toAdd)} nodig om dit potje volledig te vullen.`);
   } else {
     toast(`${fmt(toAdd)} toegewezen!`);
   }
