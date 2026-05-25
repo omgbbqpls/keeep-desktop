@@ -169,10 +169,9 @@ function getActivePageName() {
 }
 
 function renderActiveMonthPage() {
+  updateMonthNavUI();
   const active = getActivePageName();
   if (active === 'insights') {
-    const titleEl = document.getElementById('month-title');
-    if (titleEl) titleEl.textContent = maandNaam(currentYear, currentMonth);
     renderInsights();
     return;
   }
@@ -182,12 +181,14 @@ function renderActiveMonthPage() {
 function prevMonth() {
   currentMonth--;
   if (currentMonth < 1) { currentMonth = 12; currentYear--; }
+  if (getActivePageName() === 'insights' && typeof _insightsViewOptions !== 'undefined') _insightsViewOptions.preset = 'month';
   renderActiveMonthPage();
 }
 
 function nextMonth() {
   currentMonth++;
   if (currentMonth > 12) { currentMonth = 1; currentYear++; }
+  if (getActivePageName() === 'insights' && typeof _insightsViewOptions !== 'undefined') _insightsViewOptions.preset = 'month';
   renderActiveMonthPage();
 }
 
@@ -201,6 +202,83 @@ function goToBudgetMonth(year, month) {
   currentYear = Number(year);
   currentMonth = Number(month);
   renderActiveMonthPage();
+}
+
+function monthIndex(year, month) {
+  return Number(year) * 12 + Number(month) - 1;
+}
+
+function monthFromIndex(idx) {
+  return { year: Math.floor(idx / 12), month: (idx % 12) + 1 };
+}
+
+function monthSelectRange() {
+  const now = new Date();
+  const nowIdx = monthIndex(now.getFullYear(), now.getMonth() + 1);
+  const selectedIdx = monthIndex(currentYear, currentMonth);
+  let minIdx = Math.min(nowIdx - 11, selectedIdx);
+  let maxIdx = Math.max(nowIdx + 12, selectedIdx);
+
+  transactions.forEach(tx => {
+    if (!tx.date || !/^\d{4}-\d{2}/.test(tx.date)) return;
+    const y = Number(tx.date.slice(0, 4));
+    const m = Number(tx.date.slice(5, 7));
+    minIdx = Math.min(minIdx, monthIndex(y, m));
+    maxIdx = Math.max(maxIdx, monthIndex(y, m));
+  });
+
+  Object.keys(budgets || {}).forEach(key => {
+    if (!/^\d{4}-\d{2}$/.test(key)) return;
+    const y = Number(key.slice(0, 4));
+    const m = Number(key.slice(5, 7));
+    minIdx = Math.min(minIdx, monthIndex(y, m));
+    maxIdx = Math.max(maxIdx, monthIndex(y, m));
+  });
+
+  if (typeof budgetStartMonth === 'string' && /^\d{4}-\d{2}$/.test(budgetStartMonth)) {
+    minIdx = Math.min(minIdx, monthIndex(Number(budgetStartMonth.slice(0, 4)), Number(budgetStartMonth.slice(5, 7))));
+  }
+
+  return { minIdx, maxIdx, selectedIdx, nowIdx };
+}
+
+function updateMonthNavUI() {
+  const titleEl = document.getElementById('month-title');
+  if (titleEl) titleEl.textContent = maandNaam(currentYear, currentMonth);
+
+  const select = document.getElementById('month-select');
+  const todayBtn = document.getElementById('month-today-btn');
+  const { minIdx, maxIdx, selectedIdx, nowIdx } = monthSelectRange();
+  if (select) {
+    const rangeKey = `${minIdx}:${maxIdx}`;
+    if (select.dataset.rangeKey !== rangeKey) {
+      const opts = [];
+      for (let idx = maxIdx; idx >= minIdx; idx--) {
+        const { year, month } = monthFromIndex(idx);
+        const value = monthKey(year, month);
+        opts.push(`<option value="${value}">${maandNaam(year, month)}</option>`);
+      }
+      select.innerHTML = opts.join('');
+      select.dataset.rangeKey = rangeKey;
+    }
+    select.value = monthKey(currentYear, currentMonth);
+  }
+  if (todayBtn) {
+    todayBtn.disabled = selectedIdx === nowIdx;
+    todayBtn.classList.toggle('is-current', selectedIdx === nowIdx);
+  }
+}
+
+function setMonthFromSelect(value) {
+  if (!/^\d{4}-\d{2}$/.test(value || '')) return;
+  if (getActivePageName() === 'insights' && typeof _insightsViewOptions !== 'undefined') _insightsViewOptions.preset = 'month';
+  goToBudgetMonth(Number(value.slice(0, 4)), Number(value.slice(5, 7)));
+}
+
+function goToThisMonth() {
+  const now = new Date();
+  if (getActivePageName() === 'insights' && typeof _insightsViewOptions !== 'undefined') _insightsViewOptions.preset = 'month';
+  goToBudgetMonth(now.getFullYear(), now.getMonth() + 1);
 }
 
 // ── EXPORT / IMPORT ───────────────────────────────────────────────────────
@@ -916,8 +994,17 @@ async function init() {
   }
   if (loaded) toast('Opgeslagen data geladen.');
 
-  // Standaard groepen als er nog niets is
-  if (!groups.length) {
+  const shouldStartOnboarding =
+    typeof needsOnboarding === 'function' &&
+    needsOnboarding() &&
+    !groups.length;
+
+  if (groups.length && typeof needsOnboarding === 'function' && needsOnboarding() && typeof markOnboarded === 'function') {
+    markOnboarded();
+  }
+
+  // Standaard groepen als er nog niets is en de onboarding niet wordt gestart
+  if (!groups.length && !shouldStartOnboarding) {
     restoreDefaultBudget();
   }
 
@@ -937,6 +1024,10 @@ async function init() {
   // Eerste render
   render();
   showPage('budget');
+
+  if (shouldStartOnboarding && typeof startOnboarding === 'function') {
+    startOnboarding({ resetData: true, mode: 'first' });
+  }
 
   // Server status elke 30s checken
   if (!isTauriApp()) setInterval(checkServer, 30000);
@@ -1293,7 +1384,12 @@ async function resetAll() {
 }
 
 async function createNewBudget() {
-  openStandardRestoreModal('new');
+  closeModal('modal-settings');
+  if (typeof startOnboarding === 'function') {
+    startOnboarding({ resetData: true, mode: 'new' });
+  } else {
+    openStandardRestoreModal('new');
+  }
 }
 
 Object.assign(window, {

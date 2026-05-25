@@ -360,6 +360,7 @@ function renderBudget() {
   const titleEl = document.getElementById('month-title');
   const maand = maandNaam(currentYear, currentMonth);
   if (titleEl) titleEl.textContent = maand;
+  if (typeof updateMonthNavUI === 'function') updateMonthNavUI();
   const lblSuffix = `in ${maand}`;
   const lblIncome = document.getElementById('lbl-income');
   const lblSpent  = document.getElementById('lbl-spent');
@@ -542,6 +543,7 @@ let _txnSort = { key: 'date', dir: 'desc' };
 let _txnInlineEditId = null;
 let _txnInlineAdding = false;
 let _txnViewOptions = { preset: 'all', from: '', to: '' };
+let _insightsViewOptions = { preset: 'month', from: '', to: '' };
 
 function startInlineTxnAdd() {
   if (document.body.classList.contains('mobile-entry') || window.innerWidth <= 768) {
@@ -629,6 +631,62 @@ function _txnDateRange() {
   }
 }
 
+function firstActivityIso() {
+  const dates = transactions
+    .map(t => t.date)
+    .filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d || ''));
+  if (typeof budgetStartMonth === 'string' && /^\d{4}-\d{2}$/.test(budgetStartMonth)) {
+    dates.push(`${budgetStartMonth}-01`);
+  }
+  return dates.sort()[0] || vandaag();
+}
+
+function addDaysIso(dateIso, days) {
+  const d = new Date(`${dateIso}T00:00:00`);
+  d.setDate(d.getDate() + days);
+  return localIsoDate(d.getFullYear(), d.getMonth() + 1, d.getDate());
+}
+
+function dateInRange(dateIso, range) {
+  if (!dateIso) return false;
+  if (range.from && dateIso < range.from) return false;
+  if (range.to && dateIso > range.to) return false;
+  return true;
+}
+
+function _viewDateRange(options, anchorYear = currentYear, anchorMonth = currentMonth) {
+  const today = vandaag();
+  const [ty, tm] = today.split('-').map(Number);
+  switch (options.preset) {
+    case 'today': return { from: today, to: today };
+    case 'month': {
+      const lastDay = daysInMonth(anchorYear, anchorMonth);
+      return {
+        from: localIsoDate(anchorYear, anchorMonth, 1),
+        to: localIsoDate(anchorYear, anchorMonth, lastDay)
+      };
+    }
+    case 'prevmonth': {
+      const prev = shiftMonth(anchorYear, anchorMonth, -1);
+      const lastDay = daysInMonth(prev.year, prev.month);
+      return {
+        from: localIsoDate(prev.year, prev.month, 1),
+        to: localIsoDate(prev.year, prev.month, lastDay)
+      };
+    }
+    case '3months': {
+      const d = new Date(ty, tm - 1, 1);
+      d.setMonth(d.getMonth() - 2);
+      return { from: localIsoDate(d.getFullYear(), d.getMonth() + 1, 1), to: today };
+    }
+    case 'year': return { from: `${ty}-01-01`, to: `${ty}-12-31` };
+    case 'lastyear': return { from: `${ty - 1}-01-01`, to: `${ty - 1}-12-31` };
+    case 'custom': return { from: options.from, to: options.to };
+    case 'all':
+    default: return { from: firstActivityIso(), to: today };
+  }
+}
+
 function _updateTxnViewPanel() {
   const labels = { all: 'Weergave', today: 'Vandaag', month: 'Deze maand', '3months': 'Laatste 3 maanden', year: 'Dit jaar', lastyear: 'Vorig jaar', custom: 'Aangepast' };
   document.querySelectorAll('.txn-view-preset').forEach(btn => {
@@ -642,6 +700,241 @@ function _updateTxnViewPanel() {
     if (fromEl) fromEl.value = _txnViewOptions.from;
     if (toEl)   toEl.value   = _txnViewOptions.to;
   }
+}
+
+function toggleInsightsViewPanel() {
+  const panel = document.getElementById('insights-view-panel');
+  if (!panel) return;
+  const isOpen = panel.style.display !== 'none';
+  if (isOpen) { panel.style.display = 'none'; return; }
+  panel.style.display = 'block';
+  _updateInsightsViewPanel();
+  setTimeout(() => {
+    function outsideClick(e) {
+      const wrapper = document.getElementById('insights-view-wrapper');
+      if (!wrapper || wrapper.contains(e.target)) return;
+      const p = document.getElementById('insights-view-panel');
+      if (p) p.style.display = 'none';
+      document.removeEventListener('click', outsideClick);
+    }
+    document.addEventListener('click', outsideClick);
+  }, 0);
+}
+
+function setInsightsViewPreset(preset) {
+  _insightsViewOptions.preset = preset;
+  _updateInsightsViewPanel();
+  renderInsights();
+}
+
+function setInsightsViewCustom() {
+  const from = document.getElementById('insights-view-from')?.value || '';
+  const to   = document.getElementById('insights-view-to')?.value   || '';
+  _insightsViewOptions.from = from;
+  _insightsViewOptions.to   = to;
+  if (from || to) _insightsViewOptions.preset = 'custom';
+  _updateInsightsViewPanel();
+  renderInsights();
+}
+
+function _updateInsightsViewPanel() {
+  const today = vandaag();
+  const isCurrentMonth = monthKey(currentYear, currentMonth) === today.slice(0, 7);
+  const monthPresetLabel = isCurrentMonth ? 'Deze maand' : 'Geselecteerde maand';
+  const labels = { all: 'Alle datums', today: 'Vandaag', month: monthPresetLabel, prevmonth: 'Vorige maand', '3months': 'Laatste 3 maanden', year: 'Dit jaar', lastyear: 'Vorig jaar', custom: 'Aangepast' };
+  document.querySelectorAll('.insights-view-preset').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.preset === _insightsViewOptions.preset);
+    if (btn.dataset.preset === 'month') btn.textContent = monthPresetLabel;
+  });
+  const btnLabel = document.getElementById('insights-view-btn-label');
+  if (btnLabel) btnLabel.textContent = labels[_insightsViewOptions.preset] || 'Weergave';
+  const fromEl = document.getElementById('insights-view-from');
+  const toEl   = document.getElementById('insights-view-to');
+  const activeRange = _viewDateRange(_insightsViewOptions, currentYear, currentMonth);
+  if (fromEl) fromEl.value = activeRange.from || '';
+  if (toEl)   toEl.value   = activeRange.to || '';
+}
+
+function insightRangeLabel(range) {
+  const prev = shiftMonth(currentYear, currentMonth, -1);
+  const labels = { all: 'Alle datums', today: 'Vandaag', month: maandNaam(currentYear, currentMonth), prevmonth: maandNaam(prev.year, prev.month), '3months': 'Laatste 3 maanden', year: 'Dit jaar', lastyear: 'Vorig jaar', custom: 'Aangepast' };
+  if (_insightsViewOptions.preset === 'custom' && (range.from || range.to)) {
+    const from = range.from ? fmtDatum(range.from) : 'begin';
+    const to = range.to ? fmtDatum(range.to) : 'vandaag';
+    return `${from} t/m ${to}`;
+  }
+  return labels[_insightsViewOptions.preset] || maandNaam(currentYear, currentMonth);
+}
+
+function insightLowerFirst(text) {
+  if (!text) return '';
+  return text.charAt(0).toLowerCase() + text.slice(1);
+}
+
+function insightUpperFirst(text) {
+  if (!text) return '';
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+function insightMovementSubject(periodCopy) {
+  const label = periodCopy?.chartDelta || 'in deze periode';
+  return label.startsWith('in ') ? `In ${label.slice(3)}` : insightUpperFirst(label);
+}
+
+function insightPositionCoach(cents) {
+  if (cents > 0) return 'Je staat stevig op dit moment';
+  if (cents < 0) return 'Je positie vraagt aandacht';
+  return 'Je staat precies op nul';
+}
+
+function insightDevelopmentCoach(delta, periodCopy) {
+  if (Math.abs(delta) < 50) return 'Je positie bleef vrijwel gelijk';
+  const subject = insightMovementSubject(periodCopy);
+  return delta > 0
+    ? `${subject} bouwde je ruimte op`
+    : `${subject} gebruikte je ruimte`;
+}
+
+function insightIncomeCoach(assigned, readyToAssign, income) {
+  if (readyToAssign > 0) return 'Er ligt nog geld zonder taak';
+  if (assigned > 0) return 'Al je geld heeft een taak';
+  if (income > 0) return 'Geef dit geld bewust een taak';
+  return 'Nog geen inkomen om te plannen';
+}
+
+function insightLeftoverCoach(leftover, income, spent) {
+  if (income <= 0 && spent <= 0) return 'Nog geen beweging in deze periode';
+  if (Math.abs(leftover) < 50) return 'Inkomen en uitgaven hielden elkaar in balans';
+  return leftover > 0
+    ? 'Wat overbleef van je ontvangen inkomen'
+    : 'Je gebruikte meer ruimte dan er binnenkwam';
+}
+
+function insightBridgeTitle(periodCopy) {
+  const label = periodCopy?.chartDelta || '';
+  if (label === 'deze maand' || label === 'vorige maand' || label.startsWith('in ') && /\d{4}$/.test(label)) {
+    return 'Wat je maand heeft bewogen';
+  }
+  if (label === 'vandaag') return 'Wat vandaag heeft bewogen';
+  if (label === 'dit jaar') return 'Wat dit jaar heeft bewogen';
+  if (label === 'vorig jaar') return 'Wat vorig jaar heeft bewogen';
+  return 'Wat deze periode heeft bewogen';
+}
+
+function insightBridgeLead(delta) {
+  if (Math.abs(delta) < 50) return 'Je positie bleef vrijwel gelijk';
+  return delta > 0
+    ? `Je positie groeide met ${fmt(delta)}`
+    : `Je positie daalde met ${fmt(Math.abs(delta))}`;
+}
+
+function insightBridgeNarrative({ delta, leftover, periodCopy }) {
+  const period = periodCopy?.chartDelta || 'in deze periode';
+  if (Math.abs(delta) < 50) {
+    return 'Je maand bleef in balans. Kleine inkomsten, uitgaven en andere veranderingen hielden je financiële positie vrijwel gelijk.';
+  }
+  if (delta > 0) {
+    if (leftover > 0) {
+      return `Je bouwde ${period} ruimte op. Je inkomen was hoger dan je uitgaven, waardoor je financiële positie groeide. Andere veranderingen, zoals bezittingen of correcties, tellen apart mee.`;
+    }
+    if (leftover < 0) {
+      return `Je positie groeide, ondanks dat je meer uitgaf dan er binnenkwam. Andere veranderingen, zoals bezittingen of correcties, maakten het verschil.`;
+    }
+    return `Je positie groeide vooral door andere veranderingen, zoals bezittingen of correcties. Zo zie je wat je maand echt heeft bewogen.`;
+  }
+  if (leftover < 0) {
+    return `Je gebruikte ${period} meer ruimte dan er binnenkwam. Daardoor daalde je financiële positie. Andere veranderingen, zoals bezittingen of correcties, tellen apart mee.`;
+  }
+  if (leftover > 0) {
+    return `Je hield ruimte over na uitgaven, maar andere veranderingen trokken je positie omlaag. Kijk vooral naar bezittingen, correcties of aangepaste beginsaldi.`;
+  }
+  return `Je positie daalde vooral door andere veranderingen, zoals bezittingen of correcties. Zo zie je wat je maand echt heeft bewogen.`;
+}
+
+function insightNetworthChartTitle(periodCopy) {
+  const label = periodCopy?.chartDelta || '';
+  if (label === 'vandaag') return 'Je financiële positie vandaag';
+  if (label === 'deze maand' || label === 'vorige maand') return `Je financiële positie door ${periodCopy.chartPeriod} heen`;
+  if (label === 'dit jaar') return 'Je financiële positie door dit jaar heen';
+  if (label === 'vorig jaar') return 'Je financiële positie door vorig jaar heen';
+  if (label === 'in de laatste 3 maanden') return 'Je financiële positie door de laatste 3 maanden heen';
+  if (label.startsWith('in ')) return `Je financiële positie door ${label.slice(3)} heen`;
+  return `Je financiële positie door ${label || 'deze periode'} heen`;
+}
+
+function insightPeriodCopy(rangeLabel, rangeFrom, rangeTo) {
+  const preset = _insightsViewOptions.preset;
+  const isSingleDay = rangeFrom === rangeTo;
+  const lowerRange = insightLowerFirst(rangeLabel);
+  if (isSingleDay || preset === 'today') {
+    return {
+      developmentTitle: 'Ontwikkeling vandaag',
+      changeLabel: 'Wat veranderde vandaag?',
+      expenseLabel: 'Uitgaven vandaag',
+      chartPeriod: lowerRange,
+      chartDelta: 'vandaag',
+      incomeSub: 'Ontvangen vandaag'
+    };
+  }
+  if (preset === 'month') {
+    const isCurrentMonth = monthKey(currentYear, currentMonth) === vandaag().slice(0, 7);
+    return {
+      developmentTitle: isCurrentMonth ? 'Ontwikkeling deze maand' : `Ontwikkeling ${lowerRange}`,
+      changeLabel: isCurrentMonth ? 'Wat veranderde deze maand?' : `Wat veranderde in ${lowerRange}?`,
+      expenseLabel: isCurrentMonth ? 'Uitgaven deze maand' : `Uitgaven in ${lowerRange}`,
+      chartPeriod: lowerRange,
+      chartDelta: isCurrentMonth ? 'deze maand' : `in ${lowerRange}`,
+      incomeSub: isCurrentMonth ? 'Ontvangen deze maand' : `Ontvangen in ${lowerRange}`
+    };
+  }
+  if (preset === 'prevmonth') {
+    return {
+      developmentTitle: 'Ontwikkeling vorige maand',
+      changeLabel: 'Wat veranderde vorige maand?',
+      expenseLabel: 'Uitgaven vorige maand',
+      chartPeriod: lowerRange,
+      chartDelta: 'vorige maand',
+      incomeSub: 'Ontvangen vorige maand'
+    };
+  }
+  if (preset === '3months') {
+    return {
+      developmentTitle: 'Ontwikkeling laatste 3 maanden',
+      changeLabel: 'Wat veranderde in de laatste 3 maanden?',
+      expenseLabel: 'Uitgaven in de laatste 3 maanden',
+      chartPeriod: lowerRange,
+      chartDelta: 'in de laatste 3 maanden',
+      incomeSub: 'Ontvangen in de laatste 3 maanden'
+    };
+  }
+  if (preset === 'year') {
+    return {
+      developmentTitle: 'Ontwikkeling dit jaar',
+      changeLabel: 'Wat veranderde dit jaar?',
+      expenseLabel: 'Uitgaven dit jaar',
+      chartPeriod: lowerRange,
+      chartDelta: 'dit jaar',
+      incomeSub: 'Ontvangen dit jaar'
+    };
+  }
+  if (preset === 'lastyear') {
+    return {
+      developmentTitle: 'Ontwikkeling vorig jaar',
+      changeLabel: 'Wat veranderde vorig jaar?',
+      expenseLabel: 'Uitgaven vorig jaar',
+      chartPeriod: lowerRange,
+      chartDelta: 'vorig jaar',
+      incomeSub: 'Ontvangen vorig jaar'
+    };
+  }
+  return {
+    developmentTitle: 'Ontwikkeling in deze periode',
+    changeLabel: 'Wat veranderde in deze periode?',
+    expenseLabel: 'Uitgaven in deze periode',
+    chartPeriod: lowerRange,
+    chartDelta: 'in deze periode',
+    incomeSub: 'Ontvangen in deze periode'
+  };
 }
 
 // ── CATEGORIE DISPLAY IN TRANSACTIELIJST ──────────────────────────────────
@@ -1719,7 +2012,6 @@ function renderAheadPanel() {
           <span>${fmt(readyToAssign)}</span>
           <em aria-hidden="true">${isExpanded ? '⌃' : '⌄'}</em>
         </button>
-        <button class="ahead-assign-btn" type="button" onclick="event.stopPropagation();toggleAssignMenu(event)">Toewijzen</button>
         <div class="ahead-month-breakdown">
           <span><em>Meegenomen</em><strong>${fmt(item.notBudgetedPrev)}</strong></span>
           ${item.overspentPrev < 0 ? `<span>Tekort ${prevName}: <strong class="neg">${fmt(overspentDisplay)}</strong></span>` : ''}
@@ -2276,7 +2568,7 @@ function buildCatBar({ budgeted, available, isOverspent, spent, goal = null, nee
 function buildCatAvailableBar({ available, denominator }) {
   const base = Math.max(denominator || 0, 1);
   const availablePct = Math.max(0, Math.min(100, Math.round(Math.max(available, 0) / base * 100)));
-  const tone = availablePct > 0 ? 'funded' : 'idle';
+  const tone = availablePct <= 0 ? 'idle' : availablePct < 25 ? 'amber' : 'funded';
   return `<div class="cat-bar cat-bar-${tone}" title="Beschikbaar ${fmt(Math.max(available, 0))}">
             <div class="cat-bar-fill" style="width:${availablePct}%"></div>
           </div>`;
@@ -2941,12 +3233,14 @@ function showPage(name) {
   }
   const monthVisible = name === 'budget' || name === 'insights';
   const budgetTopbarVisible = name === 'budget';
-  document.querySelector('.app-topbar')?.classList.toggle('is-hidden-page', !monthVisible && !budgetTopbarVisible);
+  const appTopbar = document.querySelector('.app-topbar');
+  appTopbar?.classList.toggle('is-hidden-page', !monthVisible && !budgetTopbarVisible);
+  appTopbar?.classList.toggle('is-insights-page', name === 'insights');
   document.getElementById('ahead-panel')?.classList.toggle('is-hidden-page', !budgetTopbarVisible);
+  document.getElementById('insights-view-wrapper')?.classList.toggle('is-hidden-page', name !== 'insights');
   document.querySelector('.app-topbar-main')?.classList.toggle('topbar-month-hidden', !monthVisible);
   if (monthVisible) {
-    const monthTitle = document.getElementById('month-title');
-    if (monthTitle) monthTitle.textContent = maandNaam(currentYear, currentMonth);
+    if (typeof updateMonthNavUI === 'function') updateMonthNavUI();
   }
   if (name === 'transactions') renderTransactions();
   if (name === 'accounts') renderAccounts();
@@ -3195,6 +3489,44 @@ function calcMonthExpenseTotal(key) {
     .reduce((s, t) => s + Math.abs(t.amount), 0);
 }
 
+function calcRangeIncomeTotal(range) {
+  return transactions
+    .filter(t =>
+      dateInRange(t.date, range) &&
+      t.amount > 0 &&
+      !t.transferId &&
+      isCashAccount(t.accId)
+    )
+    .reduce((s, t) => s + t.amount, 0);
+}
+
+function calcRangeExpenseTotal(range) {
+  return transactions
+    .filter(t =>
+      dateInRange(t.date, range) &&
+      t.amount < 0 &&
+      !t.transferId &&
+      isBudgetActivityAccount(t.accId)
+    )
+    .reduce((s, t) => s + Math.abs(t.amount), 0);
+}
+
+function todayIsoLocal() {
+  const d = new Date();
+  return localIsoDate(d.getFullYear(), d.getMonth() + 1, d.getDate());
+}
+
+function insightMonthEndIso(year, month) {
+  const endIso = localIsoDate(year, month, daysInMonth(year, month));
+  const todayIso = todayIsoLocal();
+  if (monthKey(year, month) === todayIso.slice(0, 7) && endIso > todayIso) return todayIso;
+  return endIso;
+}
+
+function signedFmt(cents) {
+  return `${cents >= 0 ? '+' : ''}${fmt(cents)}`;
+}
+
 // ── INZICHTEN ─────────────────────────────────────────────────────────────
 function renderInsights() {
   const grid = document.getElementById('insights-grid');
@@ -3205,20 +3537,41 @@ function renderInsights() {
   const gridW  = grid.clientWidth || (window.innerWidth - 280);
   const innerW = gridW - 40;                       // 20px padding l+r
   const halfW  = Math.floor((innerW - 16) / 2);   // 16px gap
+  _updateInsightsViewPanel();
 
   // ── Data voorbereiden ─────────────────────────────────────────────────
+  const range = _viewDateRange(_insightsViewOptions, currentYear, currentMonth);
+  if (range.from && range.to && range.from > range.to) {
+    const tmp = range.from;
+    range.from = range.to;
+    range.to = tmp;
+  }
+  const rangeFrom = range.from || firstActivityIso();
+  const rangeTo = range.to || vandaag();
+  const rangeLabel = insightRangeLabel(range);
+  const rangeStartNw = calcNetWorthThrough(addDaysIso(rangeFrom, -1));
+  const rangeEndNw = calcNetWorthThrough(rangeTo);
+  const rangeDelta = rangeEndNw - rangeStartNw;
+
   const months = [];
-  let y = currentYear, m = currentMonth;
-  for (let i = 0; i < 12; i++) {
-    months.unshift({ year: y, month: m, key: monthKey(y, m) });
-    m--; if (m < 1) { m = 12; y--; }
+  const startDate = new Date(`${rangeFrom}T00:00:00`);
+  const endDate = new Date(`${rangeTo}T00:00:00`);
+  let y = startDate.getFullYear(), m = startDate.getMonth() + 1;
+  const endMonthIdx = endDate.getFullYear() * 12 + endDate.getMonth();
+  while ((y * 12 + m - 1) <= endMonthIdx) {
+    months.push({ year: y, month: m, key: monthKey(y, m) });
+    m++; if (m > 12) { m = 1; y++; }
   }
 
   const currentKey = monthKey(currentYear, currentMonth);
   const allMonthData = months.map(({ year, month, key }) => {
-    const inc = calcMonthIncomeTotal(key);
-    const sp  = calcMonthExpenseTotal(key);
-    const nw  = calcNetWorthThrough(key + '-31');
+    const monthRange = {
+      from: key === rangeFrom.slice(0, 7) ? rangeFrom : localIsoDate(year, month, 1),
+      to: key === rangeTo.slice(0, 7) ? rangeTo : localIsoDate(year, month, daysInMonth(year, month))
+    };
+    const inc = calcRangeIncomeTotal(monthRange);
+    const sp  = calcRangeExpenseTotal(monthRange);
+    const nw  = calcNetWorthThrough(monthRange.to);
     return { year, month, key, inc, sp, nw, hasData: inc > 0 || sp > 0 || key === currentKey };
   }).filter(d => d.hasData);
 
@@ -3232,16 +3585,12 @@ function renderInsights() {
   const mk = monthKey(currentYear, currentMonth);
 
   // KPI-waarden
-  const incNow  = calcMonthIncomeTotal(mk);
-  const spNow   = calcMonthExpenseTotal(mk);
+  const incNow  = calcRangeIncomeTotal(range);
+  const spNow   = calcRangeExpenseTotal(range);
   const nwNow   = calcNetWorth();
-  const prevM   = currentMonth - 1 < 1 ? 12 : currentMonth - 1;
-  const prevY   = currentMonth - 1 < 1 ? currentYear - 1 : currentYear;
-  const nwPrev  = calcNetWorthThrough(monthKey(prevY, prevM) + '-31');
-  const nwDelta = nwNow - nwPrev;
-  const savings = incNow > 0 ? Math.round((incNow - spNow) / incNow * 100) : null;
   const assignedNow = calcBudgetedTotalForMonth(currentYear, currentMonth);
   const leftoverNow = incNow - spNow;
+  const otherMutations = rangeDelta - leftoverNow;
 
   // Uitgaven per groep
   const spendByGroup = groups
@@ -3249,7 +3598,7 @@ function renderInsights() {
     .map(g => ({
       name: g.name,
       total: transactions
-        .filter(t => t.date?.startsWith(mk) && t.amount < 0 && !t.transferId && isBudgetActivityAccount(t.accId))
+        .filter(t => dateInRange(t.date, range) && t.amount < 0 && !t.transferId && isBudgetActivityAccount(t.accId))
         .filter(t => g.cats.some(c => c.id === t.catId))
         .reduce((s, t) => s + Math.abs(t.amount), 0)
     }))
@@ -3263,25 +3612,45 @@ function renderInsights() {
   const catTotals = allCats.map(c => ({
     name: c.name, grp: c.grpName, isIncome: c.isIncome,
     total: transactions
-      .filter(t => t.date?.startsWith(mk) && t.catId === c.id && !t.transferId &&
+      .filter(t => dateInRange(t.date, range) && t.catId === c.id && !t.transferId &&
         isBudgetActivityAccount(t.accId) && (c.isIncome ? t.amount > 0 : t.amount < 0))
       .reduce((s, t) => s + Math.abs(t.amount), 0)
   })).filter(c => c.total > 0).sort((a, b) => b.total - a.total);
 
   // ── Grafieken ─────────────────────────────────────────────────────────
-  const nwSign = nwDelta >= 0 ? '+' : '';
-  const nwSubtitle = nwDelta !== 0
-    ? `${nwSign}${fmt(nwDelta)} t.o.v. ${maandNaam(prevY, prevM)}`
-    : null;
-  const leftoverSign = leftoverNow >= 0 ? '+' : '';
-  grid.appendChild(insightCardKPI('Netto vermogen', fmt(nwNow), nwSubtitle || 'Totaal van rekeningen en bezittingen', nwNow >= 0 ? 'green' : 'red'));
-  grid.appendChild(insightCardKPI('Inkomen deze maand', fmt(incNow), `${fmt(assignedNow)} toegewezen`, 'green'));
-  grid.appendChild(insightCardKPI('Uitgaven deze maand', fmt(spNow), `${leftoverSign}${fmt(leftoverNow)} na uitgaven`, spNow > incNow && incNow > 0 ? 'red' : 'text'));
-  grid.appendChild(insightCardKPI('Spaarquote', savings == null ? '—' : `${savings}%`, savings == null ? 'Geen inkomen deze maand' : `${fmt(Math.max(0, leftoverNow))} niet uitgegeven`, savings != null && savings < 0 ? 'red' : 'purple'));
-  grid.appendChild(insightCardNetworth(networthPerMonth, labels, innerW, fmt(nwNow), nwSubtitle, nwNow >= 0 ? 'green' : 'red'));
+  const periodCopy = insightPeriodCopy(rangeLabel, rangeFrom, rangeTo);
+  const readyToAssignNow = typeof calcReadyToAssign === 'function' ? calcReadyToAssign() : 0;
+  grid.appendChild(insightCardKPI('Je financiële positie', fmt(nwNow), insightPositionCoach(nwNow), nwNow >= 0 ? 'green' : 'red'));
+  grid.appendChild(insightCardKPI(periodCopy.developmentTitle, signedFmt(rangeDelta), insightDevelopmentCoach(rangeDelta, periodCopy), rangeDelta < 0 ? 'red' : 'green'));
+  grid.appendChild(insightCardKPI('Inkomen om te plannen', fmt(incNow), insightIncomeCoach(assignedNow, readyToAssignNow, incNow), 'green'));
+  grid.appendChild(insightCardKPI('Ruimte na uitgaven', fmt(leftoverNow), insightLeftoverCoach(leftoverNow, incNow, spNow), leftoverNow < 0 ? 'red' : 'purple'));
+  grid.appendChild(insightCardNetworthBridge({
+    monthLabel: rangeLabel,
+    periodCopy,
+    startValue: rangeStartNw,
+    endValue: rangeEndNw,
+    income: incNow,
+    spent: spNow,
+    other: otherMutations,
+    leftover: leftoverNow,
+    delta: rangeDelta
+  }));
+  grid.appendChild(insightCardNetworth(
+    networthPerMonth,
+    labels,
+    innerW,
+    fmt(rangeEndNw),
+    `· ${signedFmt(rangeDelta)} sinds ${fmtDateNL(rangeFrom)}`,
+    rangeEndNw >= 0 ? 'green' : 'red',
+    {
+      title: insightNetworthChartTitle(periodCopy),
+      startIso: rangeFrom,
+      endIso: rangeTo
+    }
+  ));
   grid.appendChild(insightCardIncomeVsSpent(incomePerMonth, spentPerMonth, labels, halfW));
-  grid.appendChild(insightCardDonut(spendByGroup));
-  grid.appendChild(insightCardTopCats(catTotals));
+  grid.appendChild(insightCardDonut(spendByGroup, rangeLabel));
+  grid.appendChild(insightCardTopCats(catTotals, rangeLabel));
 }
 
 // ── HELPER: canvas maken ──────────────────────────────────────────────────
@@ -3318,11 +3687,46 @@ function insightCardKPI(label, value, sub, color) {
   return card;
 }
 
+function insightCardNetworthBridge({ monthLabel, periodCopy, startValue, endValue, income, spent, other, leftover, delta }) {
+  const wrap = document.createElement('div');
+  const isMonthLabel = /^[A-Za-zÀ-ÿ]+ \d{4}$/.test(monthLabel);
+  const lowerMonthLabel = insightLowerFirst(monthLabel);
+  const rows = [
+    { label: isMonthLabel ? `Begin ${lowerMonthLabel}` : 'Begin periode', value: startValue, type: 'neutral' },
+    { label: 'Inkomen erbij', value: income, type: 'positive', sign: true },
+    { label: 'Uitgaven eraf', value: spent, type: 'negative', prefix: '-' },
+    { label: 'Andere veranderingen', value: other, type: other < 0 ? 'negative' : other > 0 ? 'positive' : 'neutral', sign: true },
+    { label: isMonthLabel ? `Eindstand ${lowerMonthLabel}` : 'Eindstand periode', value: endValue, type: endValue < 0 ? 'negative' : 'positive', strong: true }
+  ];
+  wrap.className = 'insight-bridge';
+  wrap.innerHTML = `
+    <div class="insight-bridge-summary">
+      <div>
+        <div class="insight-bridge-label">${insightBridgeLead(delta)}</div>
+        <div class="insight-bridge-value ${delta < 0 ? 'negative' : 'positive'}">${signedFmt(delta)}</div>
+      </div>
+      <p>${insightBridgeNarrative({ delta, leftover, periodCopy })}</p>
+    </div>
+    <div class="insight-bridge-rows">
+      ${rows.map(row => {
+        const val = row.prefix ? `${row.prefix}${fmt(row.value)}` : row.sign ? signedFmt(row.value) : fmt(row.value);
+        return `
+          <div class="insight-bridge-row ${row.strong ? 'strong' : ''}">
+            <span>${row.label}</span>
+            <strong class="${row.type}">${val}</strong>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+  return insightCard(insightBridgeTitle(periodCopy), wrap, 'insight-card-full');
+}
+
 // ── LIJNDIAGRAM: Netto Vermogen ────────────────────────────────────────────
-function insightCardNetworth(data, labels, cardW = 800, valueStr = null, subStr = null, valueColor = 'green') {
+function insightCardNetworth(data, labels, cardW = 800, valueStr = null, subStr = null, valueColor = 'green', options = {}) {
   // Bouw dagelijkse datapunten op basis van alle transacties
-  const dailyPoints = buildDailyNetworth();
-  const useDaily  = dailyPoints.length > 1;
+  const dailyPoints = buildDailyNetworth(options.startIso, options.endIso);
+  const useDaily  = dailyPoints.length > 0;
   const chartData   = useDaily ? dailyPoints.map(d => d.nw)    : data;
   const chartLabels = useDaily ? dailyPoints.map(d => d.label)  : labels;
   const chartDates  = useDaily ? dailyPoints.map(d => d.date)   : labels;
@@ -3441,8 +3845,8 @@ function insightCardNetworth(data, labels, cardW = 800, valueStr = null, subStr 
     const dateStr = useDaily ? fmtDatum(chartDates[i]) : chartLabels[i];
     showTooltip(tip, e.clientX, e.clientY,
       `<strong>${dateStr}</strong><br>
-       Netto vermogen: <span style="color:${chartData[i] >= 0 ? 'var(--green)' : 'var(--red)'}">${fmt(chartData[i])}</span><br>
-       ${i > 0 ? `Verandering: <span style="color:${change >= 0 ? 'var(--green)' : 'var(--red)'}">${sign}${fmt(change)}</span>` : ''}`
+       Financiële positie: <span style="color:${chartData[i] >= 0 ? 'var(--green)' : 'var(--red)'}">${fmt(chartData[i])}</span><br>
+       ${i > 0 ? `Beweging sinds vorige punt: <span style="color:${change >= 0 ? 'var(--green)' : 'var(--red)'}">${sign}${fmt(change)}</span>` : ''}`
     );
   });
   canvas.addEventListener('mouseleave', () => { draw(); hideTooltip(tip); });
@@ -3450,14 +3854,15 @@ function insightCardNetworth(data, labels, cardW = 800, valueStr = null, subStr 
   const wrap = document.createElement('div');
   wrap.style.position = 'relative';
   wrap.appendChild(canvas);
+  const title = options.title || 'Netto Vermogen';
   const titleHtml = valueStr
-    ? `Netto Vermogen <span style="color:var(--${valueColor});font-size:18px;font-weight:700;margin-left:10px;text-transform:none;letter-spacing:0">${valueStr}</span>${subStr ? `<span style="color:var(--text3);font-size:11px;font-weight:400;margin-left:10px;text-transform:none;letter-spacing:0">${subStr}</span>` : ''}`
-    : 'Netto Vermogen';
+    ? `${title} <span style="color:var(--${valueColor});font-size:18px;font-weight:700;margin-left:10px;text-transform:none;letter-spacing:0">${valueStr}</span>${subStr ? `<span style="color:var(--text3);font-size:11px;font-weight:400;margin-left:10px;text-transform:none;letter-spacing:0">${subStr}</span>` : ''}`
+    : title;
   return insightCard(titleHtml, wrap, 'insight-card-full insight-chart-card');
 }
 
 // ── DAGELIJKS NETTO VERMOGEN BEREKENEN ────────────────────────────────────
-function buildDailyNetworth() {
+function buildDailyNetworth(startIso = null, endIso = null) {
   if (!transactions.length && !accounts.some(a => a.openingBalance)) return [];
 
   const openingTotal = accounts.reduce((s, a) => s + Math.round((a.openingBalance || 0) * 100), 0);
@@ -3476,14 +3881,20 @@ function buildDailyNetworth() {
   });
 
   const allDates = Object.keys(deltaByDate).sort();
-  if (!allDates.length) return [];
+  if (!allDates.length && !startIso && !endIso) return [];
 
-  const firstDate = allDates[0];
+  const firstDate = startIso || allDates[0] || todayIso;
+  const lastDate = endIso || todayIso;
 
   const points = [];
   let cumulative = openingTotal;
+  if (startIso) {
+    transactions.forEach(t => {
+      if (t.date && t.date < startIso && t.date <= todayIso) cumulative += t.amount;
+    });
+  }
   let cur = new Date(firstDate + 'T00:00:00');
-  const end = new Date(todayIso + 'T00:00:00');
+  const end = new Date((lastDate < firstDate ? firstDate : lastDate) + 'T00:00:00');
 
   while (cur <= end) {
     // Datum als lokale string (geen UTC-verschuiving)
@@ -3581,9 +3992,9 @@ function insightCardIncomeVsSpent(income, spent, labels, cardW = 500) {
       const spPct  = totalSp  > 0 ? Math.round(spent[i] /totalSp *100) : 0;
       showTooltip(tip, e.clientX, e.clientY,
         `<strong>${labels[i]}</strong><br>
-         Inkomen: <span style="color:var(--green)">${fmt(income[i])}</span> <span style="color:var(--text3)">(${incPct}% v/h jaar)</span><br>
-         Uitgaven: <span style="color:var(--red)">${fmt(spent[i])}</span> <span style="color:var(--text3)">(${spPct}% v/h jaar)</span><br>
-         Saldo: <span style="color:${saldo >= 0 ? 'var(--green)' : 'var(--red)'}">${sign}${fmt(saldo)}</span>`
+         Ontvangen: <span style="color:var(--green)">${fmt(income[i])}</span> <span style="color:var(--text3)">(${incPct}% van totaal)</span><br>
+         Uitgegeven: <span style="color:var(--red)">${fmt(spent[i])}</span> <span style="color:var(--text3)">(${spPct}% van totaal)</span><br>
+         Verschil: <span style="color:${saldo >= 0 ? 'var(--green)' : 'var(--red)'}">${sign}${fmt(saldo)}</span>`
       );
     }
   });
@@ -3591,13 +4002,13 @@ function insightCardIncomeVsSpent(income, spent, labels, cardW = 500) {
 
   const legend = document.createElement('div');
   legend.style.cssText = 'display:flex;gap:16px;margin-top:6px;font-size:11px;';
-  legend.innerHTML = `<span style="color:var(--green)">■ Inkomen</span><span style="color:var(--red)">■ Uitgaven</span>`;
+  legend.innerHTML = `<span style="color:var(--green)">■ Ontvangen</span><span style="color:var(--red)">■ Uitgegeven</span>`;
 
   const wrap = document.createElement('div');
   wrap.style.position = 'relative';
   wrap.appendChild(canvas);
   wrap.appendChild(legend);
-  return insightCard('Inkomen & Uitgaven', wrap, 'insight-card-half insight-chart-card');
+  return insightCard('Wat kwam binnen en wat ging eruit', wrap, 'insight-card-half insight-chart-card');
 }
 
 // ── TOOLTIP HELPERS ───────────────────────────────────────────────────────
@@ -3620,7 +4031,8 @@ function hideTooltip(tip) { tip.classList.remove('visible'); }
 // ── DONUTDIAGRAM: Uitgaven per groep ──────────────────────────────────────
 const DONUT_COLORS = ['#7c6af7','#1dc99a','#f5a623','#f04f6a','#4ab8f7','#a8e063','#f7c948'];
 
-function insightCardDonut(groups_data) {
+function insightCardDonut(groups_data, label = maandNaam(currentYear, currentMonth)) {
+  const displayLabel = insightLowerFirst(label);
   const SIZE = 180;
   const canvas = makeCanvas(SIZE, SIZE);
   const ctx = canvas.getContext('2d');
@@ -3722,17 +4134,17 @@ function insightCardDonut(groups_data) {
   wrap.appendChild(canvas);
   wrap.appendChild(legend);
 
-  const mn = maandNaam(currentYear, currentMonth);
-  return insightCard(`Uitgaven per groep — ${mn}`, wrap, 'insight-card-half insight-chart-card');
+  return insightCard(`Waar je geld naartoe ging — ${displayLabel}`, wrap, 'insight-card-half insight-chart-card');
 }
 
 // ── TOP CATEGORIEËN ───────────────────────────────────────────────────────
-function insightCardTopCats(cats) {
+function insightCardTopCats(cats, label = maandNaam(currentYear, currentMonth)) {
   const wrap = document.createElement('div');
+  const displayLabel = insightLowerFirst(label);
 
   if (!cats.length) {
-    wrap.innerHTML = '<p style="color:var(--text3);font-size:12px;">Nog geen activiteit deze maand.</p>';
-    return insightCard(`Top potjes — ${maandNaam(currentYear, currentMonth)}`, wrap, 'insight-card-full');
+    wrap.innerHTML = '<p style="color:var(--text3);font-size:12px;">Zodra er transacties in deze periode staan, helpt Keeep je hier de belangrijkste bewegingen te herkennen.</p>';
+    return insightCard(`Belangrijkste geldbewegingen — ${displayLabel}`, wrap, 'insight-card-full');
   }
 
   const income   = cats.filter(c => c.isIncome);
@@ -3746,13 +4158,13 @@ function insightCardTopCats(cats) {
 
     const lbl = document.createElement('div');
     lbl.style.cssText = 'font-size:10px;font-weight:700;letter-spacing:.06em;color:var(--text3);text-transform:uppercase;margin-bottom:10px;';
-    lbl.textContent = isInc ? 'Inkomen' : 'Uitgaven';
+    lbl.textContent = isInc ? 'Ontvangen' : 'Uitgegeven';
     col.appendChild(lbl);
 
     if (!items.length) {
       const empty = document.createElement('div');
       empty.style.cssText = 'font-size:11px;color:var(--text3);';
-      empty.textContent = 'Nog geen activiteit';
+      empty.textContent = isInc ? 'Nog geen inkomsten in deze periode' : 'Nog geen uitgaven in deze periode';
       col.appendChild(empty);
       return col;
     }
@@ -3778,11 +4190,11 @@ function insightCardTopCats(cats) {
         row.style.borderRadius = '4px';
         showTooltip(tip, e.clientX, e.clientY,
           `<strong>${c.name}</strong> <span style="color:var(--text3)">${c.grp}</span><br>
-           ${fmt(c.total)} · ${pct}% van totaal`);
+           ${fmt(c.total)} · ${pct}% van deze periode`);
       });
       row.addEventListener('mousemove', e => showTooltip(tip, e.clientX, e.clientY,
         `<strong>${c.name}</strong> <span style="color:var(--text3)">${c.grp}</span><br>
-         ${fmt(c.total)} · ${pct}% van totaal`));
+         ${fmt(c.total)} · ${pct}% van deze periode`));
       row.addEventListener('mouseleave', () => { row.style.background = ''; hideTooltip(tip); });
       col.appendChild(row);
     });
@@ -3803,7 +4215,7 @@ function insightCardTopCats(cats) {
   cols.appendChild(makeCol(income, totalInc, true));
   wrap.appendChild(cols);
 
-  return insightCard(maandNaam(currentYear, currentMonth), wrap, 'insight-card-full');
+  return insightCard(`Belangrijkste geldbewegingen — ${displayLabel}`, wrap, 'insight-card-full');
 }
 
 // ── BUDGET FILTER ─────────────────────────────────────────────────────────

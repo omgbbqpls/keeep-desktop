@@ -678,10 +678,10 @@ async function confirmTakingFromTargetGoal(catId, cents, confirmLabel = 'Toch ve
   const name = escapeHtml(cleanBudgetLabel(cat?.name || 'dit potje'));
 
   return kConfirm(
-    `Je haalt geld uit <strong>${name}</strong>, terwijl daar een doelbedrag voor staat.<br><br>` +
+    `Je haalt geld uit <strong>${name}</strong>, terwijl daar een doelbedrag voor staat. ` +
+    `Dat kan natuurlijk, maar Keeep checkt even of dit echt de bedoeling is.<br><br>` +
     `Je hebt nu <strong>${fmt(current)}</strong> van <strong>${fmt(target)}</strong> klaarstaan. ` +
-    `Na deze wijziging blijft er <strong>${fmt(after)}</strong> over voor je doel.<br><br>` +
-    `Dat kan natuurlijk, maar Keeep checkt even of dit echt de bedoeling is.`,
+    `Na deze wijziging blijft er <strong>${fmt(after)}</strong> over voor je doel.`,
     'Geld uit doelpotje halen?',
     false,
     confirmLabel

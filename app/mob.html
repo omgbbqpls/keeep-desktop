@@ -6,8 +6,8 @@
   <title>Keeep — Mobiel</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="css/keeep.css?v=110">
-  <link rel="stylesheet" href="css/mobile.css?v=14">
+  <link rel="stylesheet" href="css/keeep.css?v=148">
+  <link rel="stylesheet" href="css/mobile.css?v=16">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0d0f14">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -23,8 +23,11 @@
   <!-- ── SIDEBAR ── -->
   <aside class="sidebar">
     <div class="sb-logo">
-      <div class="sb-logo-title">Kee<span>ep</span></div>
-      <div class="sb-logo-tagline" id="sb-budget-owner">Geef je geld een plan.</div>
+      <img class="sb-logo-mark" src="icons/icon.png" alt="" aria-hidden="true">
+      <div class="sb-logo-copy">
+        <div class="sb-logo-title">Kee<span>ep</span></div>
+        <div class="sb-logo-tagline" id="sb-budget-owner">Geef je geld een plan.</div>
+      </div>
       <div class="sb-logo-meta">
         <div class="sb-logo-server" aria-hidden="true">
           <span id="server-dot" style="width:7px;height:7px;border-radius:50%;background:var(--red);display:inline-block;"></span>
@@ -94,7 +97,13 @@
     <span id="mt-available" style="display:none">€0,00</span>
     <span id="mt-available-note" style="display:none"></span>
 
-    <div class="mobile-app-logo" aria-label="Keeep">Kee<span>ep</span></div>
+    <div class="mobile-app-logo" aria-label="Keeep">
+      <img class="mobile-app-logo-mark" src="icons/icon.png" alt="" aria-hidden="true">
+      <span class="mobile-app-logo-copy">
+        <strong>Kee<span>ep</span></strong>
+        <small>Geef je geld een plan.</small>
+      </span>
+    </div>
 
     <div class="month-totals app-topbar">
       <div class="app-topbar-main">
@@ -377,6 +386,18 @@
     </div>
 
   </main>
+</div>
+
+<!-- ── EERSTE SETUP ── -->
+<div class="ob-overlay" id="ob-overlay" aria-hidden="true">
+  <div class="ob-card" role="dialog" aria-modal="true" aria-labelledby="ob-title">
+    <div class="ob-progress-wrap"><div class="ob-progress-bar" id="ob-progress"></div></div>
+    <div class="ob-body" id="ob-body"></div>
+    <div class="ob-footer">
+      <button class="ob-btn-back" id="ob-back" onclick="obBack()">Terug</button>
+      <button class="ob-btn-next" id="ob-next" onclick="obNext()">Volgende</button>
+    </div>
+  </div>
 </div>
 
 <!-- ── MODALS ── -->
@@ -818,9 +839,10 @@
 <script src="js/dialog.js?v=14"></script>
 <script src="js/state.js?v=34"></script>
 <script src="js/format.js?v=12"></script>
-<script src="js/render.js?v=140"></script>
-<script src="js/modals.js?v=67"></script>
-<script src="js/app.js?v=53"></script>
+<script src="js/render.js?v=179"></script>
+<script src="js/modals.js?v=77"></script>
+<script src="js/onboarding.js?v=1"></script>
+<script src="js/app.js?v=66"></script>
 <script>
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch(() => {});

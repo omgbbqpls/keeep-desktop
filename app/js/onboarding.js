@@ -108,12 +108,12 @@ const RECOVERY_CATEGORIES = [
   { group: 'Schulden', name: '🆘 Buffer opbouwen', selected: false, goalType: 'target', description: 'Kleine buffer zodat roodstand minder snel terugkomt' },
 ];
 
-const SETUP_STEPS = ['profile', 'household', 'income', 'fixed', 'daily', 'subscriptions', 'savings', 'debts', 'accounts', 'details', 'review'];
+const SETUP_STEPS = ['profile', 'categories', 'review'];
 
 const SETUP_ACCOUNT_TEMPLATES = [
   { name: 'Betaalrekening', type: 'checking', onBudget: true, selected: true },
   { name: 'Cash', type: 'cash', onBudget: true, selected: false },
-  { name: 'Creditcard', type: 'credit', onBudget: true, selected: true },
+  { name: 'Creditcard', type: 'credit', onBudget: true, selected: false },
   { name: 'Auto', type: 'car', onBudget: false, selected: false },
   { name: 'Beleggingen', type: 'investment', onBudget: false, selected: false },
   { name: 'Spaarrekening', type: 'savings', onBudget: false, selected: false },
@@ -163,7 +163,7 @@ function initActiveCategoryState() {
       const existing = _ob.resetData ? null : findExistingSetupCategory(item);
       const existingGoal = existing ? goals?.[existing.id] : null;
       const existingMeta = existing ? categoryMeta?.[existing.id] : null;
-      _ob.selected[id] = _ob.resetData ? false : existing ? true : item.selected !== false;
+      _ob.selected[id] = existing ? true : item.selected !== false;
       _ob.details[id] = {
         goalType: existingGoal?.type || item.goalType || 'none',
         goalAmount: _ob.resetData ? '' : existingGoal?.amount ? fmtInput(existingGoal.amount) : '',
@@ -214,7 +214,7 @@ function resetOnboardingState(options = {}) {
     const existing = _ob.resetData ? null : findExistingSetupCategory(item);
     const existingGoal = existing ? goals?.[existing.id] : null;
     const existingMeta = existing ? categoryMeta?.[existing.id] : null;
-    _ob.selected[id] = _ob.resetData ? false : existing ? true : item.selected !== false;
+    _ob.selected[id] = existing ? true : item.selected !== false;
     _ob.details[id] = {
       goalType: existingGoal?.type || item.goalType || 'none',
       goalAmount: _ob.resetData ? '' : existingGoal?.amount ? fmtInput(existingGoal.amount) : '',
@@ -227,22 +227,28 @@ function startOnboarding(options = {}) {
   resetOnboardingState(options);
   _obStep = 0;
   const overlay = document.getElementById('ob-overlay');
-  if (overlay) overlay.classList.add('active');
+  if (overlay) {
+    overlay.classList.add('active');
+    overlay.setAttribute('aria-hidden', 'false');
+  }
   renderObStep();
 }
 
 function closeOnboarding() {
   const overlay = document.getElementById('ob-overlay');
-  if (overlay) overlay.classList.remove('active');
+  if (overlay) {
+    overlay.classList.remove('active');
+    overlay.setAttribute('aria-hidden', 'true');
+  }
 }
 
 function obNext() {
   if (_obStep === 0 && !_ob.name.trim()) {
-    toast('Vul je naam in.');
+    toast('Geef je budget eerst een naam.');
     return;
   }
-  if (SETUP_STEPS[_obStep] === 'savings' && !getSelectedSetupItems().length) {
-    toast('Kies minimaal één categorie.');
+  if (SETUP_STEPS[_obStep] === 'categories' && !getSelectedSetupItems().length) {
+    toast('Kies minimaal één potje om mee te starten.');
     return;
   }
   if (_obStep < SETUP_STEPS.length - 1) {
@@ -271,46 +277,38 @@ function renderObStep() {
   const step = SETUP_STEPS[_obStep];
   prog.style.width = Math.round(((_obStep + 1) / SETUP_STEPS.length) * 100) + '%';
   backBtn.style.display = _obStep === 0 ? 'none' : 'inline-flex';
-  nextBtn.textContent = _obStep === SETUP_STEPS.length - 1 ? 'Setup opslaan' : 'Volgende';
+  nextBtn.textContent = _obStep === SETUP_STEPS.length - 1 ? 'Budget maken' : 'Volgende';
 
-  if (step === 'profile')   renderSetupProfile(body);
-  if (step === 'household') renderSetupHousehold(body);
-  if (step === 'income')    renderSetupIncome(body);
-  if (step === 'fixed')     renderSetupCategoryStep(body, 'Vaste lasten', 'Welke vaste lasten heb je iedere maand?', 'Kies de vaste verplichtingen die elke maand terugkomen.');
-  if (step === 'daily')     renderSetupCategoryStep(body, 'Dagelijks leven', 'Waar spendeer je iedere maand geld aan?', 'Kies je dagelijkse uitgaven. Abonnementen vragen we hierna apart uit.');
-  if (step === 'subscriptions') renderSetupSubscriptionStep(body);
-  if (step === 'savings')   renderSetupCategoryStep(body, 'Spaardoelen / vrije ruimte', 'Waar wil je voor sparen of ruimte voor maken?', 'Kies echte spaardoelen en vrije ruimte die je bewust wilt plannen.');
-  if (step === 'debts')     renderSetupDebts(body);
-  if (step === 'accounts')  renderSetupAccounts(body);
-  if (step === 'details')   renderSetupDetails(body);
-  if (step === 'review')    renderSetupReview(body);
+  if (step === 'profile')    renderSetupProfile(body);
+  if (step === 'categories') renderSetupCategories(body);
+  if (step === 'review')     renderSetupReview(body);
 }
 
 function renderSetupTitle(body, title, sub = '') {
   body.innerHTML = '';
   const wrap = document.createElement('div');
   wrap.className = 'ob-title-wrap';
-  wrap.innerHTML = `<h2 class="ob-title">${title}</h2>${sub ? `<p class="ob-sub">${sub}</p>` : ''}`;
+  wrap.innerHTML = `<h2 class="ob-title" id="ob-title">${title}</h2>${sub ? `<p class="ob-sub">${sub}</p>` : ''}`;
   body.appendChild(wrap);
 }
 
 // ── STAP: PROFIEL ────────────────────────────────────────────────────────
 
 function renderSetupProfile(body) {
-  renderSetupTitle(body, 'Welkom bij Keeep', 'We maken je budgetstructuur persoonlijk.');
+  renderSetupTitle(body, 'Maak je budget', 'Geef je budget een naam. Daarna kies je rustig welke potjes je wilt starten.');
   const input = document.createElement('input');
   input.type = 'text';
   input.className = 'ob-text-input';
-  input.placeholder = 'Jouw naam';
+  input.placeholder = 'Bijv. Huishouden, Privé of Familie';
   input.value = _ob.name;
   input.oninput = e => { _ob.name = e.target.value; };
   input.onkeydown = e => { if (e.key === 'Enter') obNext(); };
   body.appendChild(input);
 
-  if (_ob.resetData) {
+  if (_ob.resetData && _ob.mode !== 'first') {
     const note = document.createElement('p');
     note.className = 'ob-sub ob-inline-note';
-    note.textContent = 'Je begint opnieuw. Bij opslaan wordt je oude budget vervangen door deze nieuwe setup.';
+    note.textContent = 'Je begint opnieuw. Bij het maken van dit budget wordt je oude budget vervangen.';
     body.appendChild(note);
   }
 
@@ -657,7 +655,7 @@ function renderSetupAccountRow(acc) {
 // ── STAP: CATEGORIEËN ────────────────────────────────────────────────────
 
 function renderSetupCategories(body) {
-  renderSetupTitle(body, 'Welke categorieën wil je standaard zien?', 'Je kunt later altijd categorieën toevoegen of verwijderen.');
+  renderSetupTitle(body, 'Welke potjes wil je gebruiken?', 'We zetten een rustige standaard klaar voor NL/BE. Pas aan wat niet bij jou past; later kun je altijd potjes toevoegen of verwijderen.');
 
   const list = document.createElement('div');
   list.className = 'ob-category-groups';
@@ -800,28 +798,16 @@ function syncSetupDetailFromEvent(e) {
 function renderSetupReview(body) {
   const selected = getSelectedSetupItems();
   const selectedIncome = getSelectedSetupIncomeItems();
-  const goalsCount = selected.filter(item => {
-    const amount = parseBedrag(_ob.details[setupCategoryId(item)]?.goalAmount || '');
-    return amount > 0;
-  }).length;
-  const descCount = selected.filter(item => (_ob.details[setupCategoryId(item)]?.description || '').trim()).length;
   const groupCount = new Set(selected.map(item => item.group)).size;
-  const accountCount = getSetupAccountsToSave().length;
 
-  const situationLabel = { single: 'Eenpersoonshuishouden', couple: 'Tweepersoonshuishouden', family: 'Gezin met kinderen' }[_ob.household.situation] || '';
-
-  renderSetupTitle(body, 'Klaar om je budget te maken', 'We vervangen je categorie-indeling door deze setup.');
+  renderSetupTitle(body, 'Klaar om te beginnen', 'Keeep zet je startpotjes klaar. Daarna kun je rekeningen toevoegen en je eerste geld een plan geven.');
   const summary = document.createElement('div');
   summary.className = 'ob-review';
   summary.innerHTML = `
     <div><strong>${_ob.name.trim()}</strong></div>
-    <div>${situationLabel}${_ob.household.car ? ' · Auto' : ''}${_ob.household.pets ? ' · Huisdieren' : ''}</div>
-    <div>${accountCount} rekeningen en bezittingen</div>
     <div>${selectedIncome.length || 1} inkomenscategorieën</div>
     <div>${groupCount} hoofdcategorieën</div>
-    <div>${selected.length} categorieën zichtbaar</div>
-    <div>${goalsCount} doelen ingesteld</div>
-    <div>${descCount} begunstigde(n) opgeslagen</div>
+    <div>${selected.length} potjes zichtbaar</div>
     ${_ob.resetData ? '<div>Oude data wordt gewist bij opslaan</div>' : ''}
   `;
   body.appendChild(summary);
@@ -839,7 +825,7 @@ function getSelectedSetupIncomeItems() {
 
 function getSetupAccountsToSave() {
   return _ob.accounts.filter(acc =>
-    acc.existing || acc.name.trim() || parseBedrag(acc.balance || '') !== 0
+    acc.existing || acc.selected || parseBedrag(acc.balance || '') !== 0
   );
 }
 

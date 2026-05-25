@@ -6,7 +6,7 @@
   <title>Keeep — Budget like you mean it</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="css/keeep.css?v=135">
+  <link rel="stylesheet" href="css/keeep.css?v=148">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0d0f14">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -22,8 +22,11 @@
   <!-- ── SIDEBAR ── -->
   <aside class="sidebar">
     <div class="sb-logo">
-      <div class="sb-logo-title">Kee<span>ep</span></div>
-      <div class="sb-logo-tagline" id="sb-budget-owner">Geef je geld een plan.</div>
+      <img class="sb-logo-mark" src="icons/icon.png" alt="" aria-hidden="true">
+      <div class="sb-logo-copy">
+        <div class="sb-logo-title">Kee<span>ep</span></div>
+        <div class="sb-logo-tagline" id="sb-budget-owner">Geef je geld een plan.</div>
+      </div>
       <div class="sb-logo-meta">
         <div class="sb-logo-server" aria-hidden="true">
           <span id="server-dot" style="width:7px;height:7px;border-radius:50%;background:var(--red);display:inline-block;"></span>
@@ -110,9 +113,37 @@
           <div class="ahead-strip" id="ahead-strip"></div>
         </div>
         <div class="month-nav topbar-month-el">
-          <button onclick="prevMonth()">‹</button>
+          <div class="txn-view-wrapper insights-view-wrapper" id="insights-view-wrapper">
+            <button class="txn-today-filter txn-view-btn" id="insights-view-btn" onclick="toggleInsightsViewPanel()" type="button">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              <span id="insights-view-btn-label">Deze maand</span>
+              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="txn-view-panel" id="insights-view-panel" style="display:none;">
+              <div class="txn-view-panel-title">Weergave opties</div>
+              <div class="txn-view-presets">
+                <button class="txn-view-preset insights-view-preset" data-preset="all"      onclick="setInsightsViewPreset('all')">Alle datums</button>
+                <button class="txn-view-preset insights-view-preset" data-preset="today"    onclick="setInsightsViewPreset('today')">Vandaag</button>
+                <button class="txn-view-preset insights-view-preset active" data-preset="month"    onclick="setInsightsViewPreset('month')">Deze maand</button>
+                <button class="txn-view-preset insights-view-preset" data-preset="prevmonth" onclick="setInsightsViewPreset('prevmonth')">Vorige maand</button>
+                <button class="txn-view-preset insights-view-preset" data-preset="3months"  onclick="setInsightsViewPreset('3months')">Laatste 3 maanden</button>
+                <button class="txn-view-preset insights-view-preset" data-preset="year"     onclick="setInsightsViewPreset('year')">Dit jaar</button>
+                <button class="txn-view-preset insights-view-preset" data-preset="lastyear" onclick="setInsightsViewPreset('lastyear')">Vorig jaar</button>
+              </div>
+              <div class="txn-view-divider"></div>
+              <div class="txn-view-custom">
+                <label>Van</label>
+                <input type="date" id="insights-view-from" oninput="setInsightsViewCustom()">
+                <label>t/m</label>
+                <input type="date" id="insights-view-to" oninput="setInsightsViewCustom()">
+              </div>
+            </div>
+          </div>
+          <button class="month-arrow" onclick="prevMonth()" title="Vorige maand">‹</button>
+          <select class="month-select" id="month-select" onchange="setMonthFromSelect(this.value)" aria-label="Maand kiezen"></select>
+          <button class="month-arrow" onclick="nextMonth()" title="Volgende maand">›</button>
+          <button class="month-today" id="month-today-btn" onclick="goToThisMonth()">Huidige maand</button>
           <span class="month-title" id="month-title">Mei 2026</span>
-          <button onclick="nextMonth()">›</button>
         </div>
       </div>
     </div>
@@ -374,6 +405,18 @@
     </div>
 
   </main>
+</div>
+
+<!-- ── EERSTE SETUP ── -->
+<div class="ob-overlay" id="ob-overlay" aria-hidden="true">
+  <div class="ob-card" role="dialog" aria-modal="true" aria-labelledby="ob-title">
+    <div class="ob-progress-wrap"><div class="ob-progress-bar" id="ob-progress"></div></div>
+    <div class="ob-body" id="ob-body"></div>
+    <div class="ob-footer">
+      <button class="ob-btn-back" id="ob-back" onclick="obBack()">Terug</button>
+      <button class="ob-btn-next" id="ob-next" onclick="obNext()">Volgende</button>
+    </div>
+  </div>
 </div>
 
 <!-- ── MODALS ── -->
@@ -836,9 +879,10 @@
 <script src="js/dialog.js?v=14"></script>
 <script src="js/state.js?v=35"></script>
 <script src="js/format.js?v=12"></script>
-<script src="js/render.js?v=167"></script>
-<script src="js/modals.js?v=76"></script>
-<script src="js/app.js?v=63"></script>
+<script src="js/render.js?v=179"></script>
+<script src="js/modals.js?v=77"></script>
+<script src="js/onboarding.js?v=1"></script>
+<script src="js/app.js?v=66"></script>
 <script>
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch(() => {});
