@@ -280,7 +280,7 @@ function toggleGroup(grpId) {
 }
 
 function toggleAllGroups() {
-  const budgetGroups = groups.filter(grp => grp.name !== 'Inkomen');
+  const budgetGroups = groups.filter(grp => grp.name !== 'Inkomen' && !(typeof isSystemBudgetGroup === 'function' && isSystemBudgetGroup(grp)));
   const anyOpen = budgetGroups.some(grp => grpState[grp.id] !== false);
   budgetGroups.forEach(grp => {
     grpState[grp.id] = !anyOpen;
@@ -292,7 +292,7 @@ function toggleAllGroups() {
 function updateBudgetMasterToggle() {
   const chev = document.getElementById('budget-master-chevron');
   if (!chev) return;
-  const budgetGroups = groups.filter(grp => grp.name !== 'Inkomen');
+  const budgetGroups = groups.filter(grp => grp.name !== 'Inkomen' && !(typeof isSystemBudgetGroup === 'function' && isSystemBudgetGroup(grp)));
   const anyOpen = budgetGroups.some(grp => grpState[grp.id] !== false);
   chev.textContent = anyOpen ? '▼' : '▶';
 }
@@ -300,6 +300,7 @@ function updateBudgetMasterToggle() {
 // ── BUDGET PAGINA ─────────────────────────────────────────────────────────
 function renderBudget() {
   if (typeof ensureCreditCardPaymentGroup === 'function') ensureCreditCardPaymentGroup();
+  if (typeof ensureBalanceCorrectionCategory === 'function') ensureBalanceCorrectionCategory();
   if (typeof ensureForwardPlanInSavings === 'function') ensureForwardPlanInSavings();
   if (typeof ensureThreeBudgetGroups === 'function') ensureThreeBudgetGroups();
   if (typeof normalizeSubscriptionCategoryMeta === 'function') normalizeSubscriptionCategoryMeta();
@@ -397,11 +398,11 @@ function renderBudget() {
   }
 
   groups.forEach(grp => {
-    if (grp.name === 'Inkomen') return;
+    if (grp.name === 'Inkomen' || (typeof isSystemBudgetGroup === 'function' && isSystemBudgetGroup(grp))) return;
 
     let grpBudgeted = 0, grpSpent = 0, grpAvail = 0;
     grp.cats.forEach(cat => {
-      grpBudgeted += calcCatBudgeted(cat.id);
+      grpBudgeted += calcCatAssignedDisplay(cat.id);
       grpSpent    += calcCatSpent(cat.id);
       grpAvail    += calcCatAvailable(cat.id);
     });
@@ -450,6 +451,7 @@ function renderBudget() {
     grp.cats.forEach(cat => {
       const income    = isIncomeCat(cat.id);
       const budgeted  = calcCatBudgeted(cat.id);
+      const assignedDisplay = calcCatAssignedDisplay(cat.id);
       const spent     = calcCatSpent(cat.id);
       const available = calcCatAvailable(cat.id);
       const fundingStatus = calcFundingRuleStatus(cat.id);
@@ -506,7 +508,7 @@ function renderBudget() {
         : `<div class="cat-spent">${fmt(Math.abs(spent))}</div>`;
       const budgetHtml = income
         ? `<div class="cat-budgeted"></div>`
-        : `<div class="cat-budgeted"><input class="budget-input ${budgeted === 0 ? 'budget-input-zero' : ''}" value="${fmtInput(budgeted)}" onchange="setBudget('${cat.id}', this.value)" onfocus="this.select()"></div>`;
+        : `<div class="cat-budgeted"><input class="budget-input ${assignedDisplay === 0 ? 'budget-input-zero' : ''}" value="${fmtInput(assignedDisplay)}" onchange="setBudgetIncludingRollover('${cat.id}', this.value)" onfocus="this.select()"></div>`;
 
       const visual = getCategoryVisual(cat);
       const catIcon = visual.iconHtml;
@@ -782,23 +784,27 @@ function insightMovementSubject(periodCopy) {
 }
 
 function insightPositionCoach(cents) {
-  if (cents > 0) return 'Je staat stevig op dit moment';
+  if (cents > 0) return 'Je totale positie is positief';
   if (cents < 0) return 'Je positie vraagt aandacht';
   return 'Je staat precies op nul';
 }
 
-function insightDevelopmentCoach(delta, periodCopy) {
+function insightDevelopmentCoach(delta, periodCopy, leftover = 0, other = 0) {
   if (Math.abs(delta) < 50) return 'Je positie bleef vrijwel gelijk';
   const subject = insightMovementSubject(periodCopy);
-  return delta > 0
-    ? `${subject} bouwde je ruimte op`
-    : `${subject} gebruikte je ruimte`;
+  if (delta > 0) {
+    if (leftover < 0 && other > Math.abs(leftover)) return 'Je positie steeg door andere veranderingen';
+    if (leftover > 0) return `${subject} hield je geld over`;
+    return 'Je positie steeg in deze periode';
+  }
+  if (leftover < 0) return `${subject} gaf je meer uit dan er binnenkwam`;
+  return 'Je positie daalde door andere veranderingen';
 }
 
 function insightIncomeCoach(assigned, readyToAssign, income) {
   if (readyToAssign > 0) return 'Er ligt nog geld zonder taak';
   if (assigned > 0) return 'Al je geld heeft een taak';
-  if (income > 0) return 'Geef dit geld bewust een taak';
+  if (income > 0) return 'Dit kwam binnen om te verdelen';
   return 'Nog geen inkomen om te plannen';
 }
 
@@ -806,49 +812,49 @@ function insightLeftoverCoach(leftover, income, spent) {
   if (income <= 0 && spent <= 0) return 'Nog geen beweging in deze periode';
   if (Math.abs(leftover) < 50) return 'Inkomen en uitgaven hielden elkaar in balans';
   return leftover > 0
-    ? 'Wat overbleef van je ontvangen inkomen'
-    : 'Je gebruikte meer ruimte dan er binnenkwam';
+    ? `Je hield ${fmt(leftover)} over na uitgaven`
+    : `Je gaf ${fmt(Math.abs(leftover))} meer uit dan er binnenkwam`;
 }
 
 function insightBridgeTitle(periodCopy) {
   const label = periodCopy?.chartDelta || '';
   if (label === 'deze maand' || label === 'vorige maand' || label.startsWith('in ') && /\d{4}$/.test(label)) {
-    return 'Wat je maand heeft bewogen';
+    return 'Wat veranderde er deze maand?';
   }
-  if (label === 'vandaag') return 'Wat vandaag heeft bewogen';
-  if (label === 'dit jaar') return 'Wat dit jaar heeft bewogen';
-  if (label === 'vorig jaar') return 'Wat vorig jaar heeft bewogen';
-  return 'Wat deze periode heeft bewogen';
+  if (label === 'vandaag') return 'Wat veranderde er vandaag?';
+  if (label === 'dit jaar') return 'Wat veranderde er dit jaar?';
+  if (label === 'vorig jaar') return 'Wat veranderde er vorig jaar?';
+  return 'Wat veranderde er in deze periode?';
 }
 
 function insightBridgeLead(delta) {
   if (Math.abs(delta) < 50) return 'Je positie bleef vrijwel gelijk';
   return delta > 0
-    ? `Je positie groeide met ${fmt(delta)}`
+    ? `Je financiële positie steeg met ${fmt(delta)}`
     : `Je positie daalde met ${fmt(Math.abs(delta))}`;
 }
 
-function insightBridgeNarrative({ delta, leftover, periodCopy }) {
+function insightBridgeNarrative({ delta, leftover, other, periodCopy }) {
   const period = periodCopy?.chartDelta || 'in deze periode';
   if (Math.abs(delta) < 50) {
-    return 'Je maand bleef in balans. Kleine inkomsten, uitgaven en andere veranderingen hielden je financiële positie vrijwel gelijk.';
+    return 'Je financiële positie bleef vrijwel gelijk. Inkomen, uitgaven en andere veranderingen hielden elkaar ongeveer in balans.';
   }
   if (delta > 0) {
     if (leftover > 0) {
-      return `Je bouwde ${period} ruimte op. Je inkomen was hoger dan je uitgaven, waardoor je financiële positie groeide. Andere veranderingen, zoals bezittingen of correcties, tellen apart mee.`;
+      return `Je inkomen was hoger dan je uitgaven. Daardoor hield je geld over, en andere veranderingen zoals bezittingen of saldocorrecties tellen apart mee.`;
     }
     if (leftover < 0) {
-      return `Je positie groeide, ondanks dat je meer uitgaf dan er binnenkwam. Andere veranderingen, zoals bezittingen of correcties, maakten het verschil.`;
+      return `Je gaf ${fmt(Math.abs(leftover))} meer uit dan er binnenkwam. Dat je positie toch steeg, komt door andere veranderingen zoals bezittingen of saldocorrecties.`;
     }
-    return `Je positie groeide vooral door andere veranderingen, zoals bezittingen of correcties. Zo zie je wat je maand echt heeft bewogen.`;
+    return `Je positie steeg vooral door andere veranderingen, zoals bezittingen of saldocorrecties.`;
   }
   if (leftover < 0) {
-    return `Je gebruikte ${period} meer ruimte dan er binnenkwam. Daardoor daalde je financiële positie. Andere veranderingen, zoals bezittingen of correcties, tellen apart mee.`;
+    return `Je gaf ${period} meer uit dan er binnenkwam. Daardoor daalde je financiële positie. Andere veranderingen zoals bezittingen of saldocorrecties tellen apart mee.`;
   }
   if (leftover > 0) {
-    return `Je hield ruimte over na uitgaven, maar andere veranderingen trokken je positie omlaag. Kijk vooral naar bezittingen, correcties of aangepaste beginsaldi.`;
+    return `Je hield geld over na uitgaven, maar andere veranderingen trokken je positie omlaag. Kijk vooral naar bezittingen, saldocorrecties of aangepaste beginsaldi.`;
   }
-  return `Je positie daalde vooral door andere veranderingen, zoals bezittingen of correcties. Zo zie je wat je maand echt heeft bewogen.`;
+  return `Je positie daalde vooral door andere veranderingen, zoals bezittingen of saldocorrecties.`;
 }
 
 function insightNetworthChartTitle(periodCopy) {
@@ -939,6 +945,9 @@ function insightPeriodCopy(rangeLabel, rangeFrom, rangeTo) {
 
 // ── CATEGORIE DISPLAY IN TRANSACTIELIJST ──────────────────────────────────
 function txnCatDisplay(tx) {
+  if (typeof isBalanceCorrectionTxn === 'function' && isBalanceCorrectionTxn(tx)) {
+    return `<span class="txn-cat-label txn-cat-chip txn-cat-chip-correction"><span>Saldo correctie</span></span>`;
+  }
   const isOpeningTx = tx.isOpeningBalance || normalizePayeeName(tx.payee) === 'beginsaldo';
   if (tx.transferId) {
     const arrowIcon = `<span class="txn-cat-icon txn-cat-icon--transfer"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="17 1 21 5 17 9"/><path d="M3 5h18"/><polyline points="7 15 3 19 7 23"/><path d="M21 19H3"/></svg></span>`;
@@ -955,9 +964,6 @@ function txnCatDisplay(tx) {
         : 'Off-budget';
     const tone = tx.isOpeningBalance ? 'opening' : tx.isBalanceCorrection ? 'correction' : 'offbudget';
     return `<span class="txn-cat-label txn-cat-chip txn-cat-chip-${tone}"><span class="txn-cat-icon">${accTypeIcon(getAccount(tx.accId)?.type)}</span><span>${label}</span></span>`;
-  }
-  if (tx.isBalanceCorrection) {
-    return `<span class="txn-cat-label txn-cat-chip txn-cat-chip-correction"><span class="txn-cat-icon">✓</span><span>Correctie</span></span>`;
   }
   const cat = findCat(tx.catId);
   if (!cat) return `<span class="txn-cat-label txn-cat-chip txn-cat-chip-uncat"><span>Ongecategoriseerd</span></span>`;
@@ -1061,6 +1067,7 @@ function inlineTxnTargetAccountId(value) {
 
 function txnCategoryOptionLabel(cat) {
   if (!cat) return '';
+  if (typeof isBalanceCorrectionCat === 'function' && isBalanceCorrectionCat(cat.id)) return BALANCE_CORRECTION_CAT_NAME;
   const available = calcCatAvailable(cat.id);
   return isIncomeCat(cat.id)
     ? cat.name
@@ -1074,6 +1081,7 @@ function txnAccountTargetOptionLabel(acc) {
 function inlineTxnOptions(selectedValue = '') {
   let html = '<option value="">— Kies —</option>';
   groups.forEach(grp => {
+    if (typeof isSystemBudgetGroup === 'function' && isSystemBudgetGroup(grp)) return;
     html += `<optgroup label="${escapeHtml(grp.name)}">`;
     grp.cats.forEach(cat => {
       html += `<option value="${escapeHtml(cat.id)}" ${cat.id === selectedValue ? 'selected' : ''}>${escapeHtml(txnCategoryOptionLabel(cat))}</option>`;
@@ -1301,7 +1309,7 @@ function renderTransactions() {
   const filtered = transactions.filter(tx => {
     if (filterAcc && tx.accId !== filterAcc) return false;
     const isOpeningTx = tx.isOpeningBalance || normalizePayeeName(tx.payee) === 'beginsaldo';
-    if (filterCat === '__uncat__' && (tx.catId || tx.transferId || isOpeningTx || tx.isBalanceCorrection || !isBudgetActivityAccount(tx.accId))) return false;
+    if (filterCat === '__uncat__' && (tx.catId || tx.transferId || isOpeningTx || (typeof isBalanceCorrectionTxn === 'function' && isBalanceCorrectionTxn(tx)) || !isBudgetActivityAccount(tx.accId))) return false;
     if (filterCat && filterCat !== '__uncat__' && tx.catId !== filterCat) return false;
     if (_dateFrom && tx.date < _dateFrom) return false;
     if (_dateTo   && tx.date > _dateTo)   return false;
@@ -1422,8 +1430,8 @@ async function openAccountCheck() {
     id: genId(),
     date: vandaag(),
     accId: acc.id,
-    catId: null,
-    payee: 'Rekening controleren',
+    catId: typeof getBalanceCorrectionCatId === 'function' ? getBalanceCorrectionCatId() : null,
+    payee: 'Saldocorrectie',
     memo: `Correctie van ${fmt(currentBal)} naar ${fmt(newBal)}`,
     amount: diff,
     cleared: true,
@@ -1581,6 +1589,16 @@ function calcNetWorthThrough(dateIso) {
 function calcCatBudgeted(catId) {
   const bm = getBudgetMonth(currentYear, currentMonth);
   return Math.round((bm[catId] ?? 0) * 100);
+}
+
+function calcCatRollover(catId) {
+  if (isIncomeCat(catId)) return 0;
+  return getPrevAvailable(catId);
+}
+
+function calcCatAssignedDisplay(catId) {
+  if (isIncomeCat(catId)) return 0;
+  return calcCatRollover(catId) + calcCatBudgeted(catId);
 }
 
 function isIncomeCat(catId) {
@@ -1785,14 +1803,72 @@ function renderAvailabilityMode(rta) {
   const banner     = document.getElementById('budget-overspend-banner');
   const amountSpan = document.getElementById('budget-overspend-amount');
   const sub        = document.getElementById('budget-overspend-sub');
+  const title      = banner?.querySelector('.budget-overspend-title');
+  const actionBtn  = document.getElementById('budget-overspend-action');
   if (!banner) return;
   if (rta < 0) {
-    if (amountSpan) amountSpan.textContent = fmt(Math.abs(rta));
-    if (sub) sub.textContent = 'Verplaats geld of verlaag een potje om je maand weer kloppend te maken.';
+    const onBudgetTotal = calcOnBudgetAccountTotal();
+    const startsNegative = onBudgetTotal < 0;
+    banner.dataset.mode = startsNegative ? 'shortage' : 'overspend';
+    if (startsNegative) {
+      if (title) title.innerHTML = `Je budget staat <span id="budget-overspend-amount">${fmt(Math.abs(onBudgetTotal))}</span> onder nul.`;
+      if (sub) sub.textContent = 'Keeep helpt je dit eerst opvangen. Daarna zie je welk geld je vrij kunt verdelen.';
+      if (actionBtn) actionBtn.textContent = 'Bekijk plan →';
+    } else {
+      if (title) title.innerHTML = `Je hebt <span id="budget-overspend-amount">${fmt(Math.abs(rta))}</span> meer toegewezen dan beschikbaar is.`;
+      if (sub) sub.textContent = 'Verplaats geld of verlaag een potje om je maand weer kloppend te maken.';
+      if (actionBtn) actionBtn.textContent = 'Budget in balans brengen →';
+    }
     banner.style.display = 'flex';
   } else {
     banner.style.display = 'none';
+    banner.dataset.mode = '';
   }
+}
+
+function calcOnBudgetAccountTotal() {
+  return accounts
+    .filter(acc => isBudgetActivityAccount(acc.id))
+    .reduce((sum, acc) => sum + calcAccountBalance(acc.id), 0);
+}
+
+function getMostRelevantCreditCardPaymentCat() {
+  const ccGroup = groups.find(g => g.name === _ccGrpName());
+  if (!ccGroup) return null;
+  const creditAccounts = accounts
+    .filter(acc => isCreditAccount(acc.id))
+    .map(acc => ({ acc, balance: calcAccountBalance(acc.id) }))
+    .filter(item => item.balance < 0)
+    .sort((a, b) => a.balance - b.balance);
+  for (const { acc } of creditAccounts) {
+    const cat = ccGroup.cats.find(c => c._accId === acc.id);
+    if (cat) return { group: ccGroup, cat, acc };
+  }
+  const cat = ccGroup.cats[0];
+  return cat ? { group: ccGroup, cat, acc: null } : null;
+}
+
+function handleBudgetAlertAction() {
+  const banner = document.getElementById('budget-overspend-banner');
+  if (banner?.dataset.mode === 'shortage') {
+    openShortagePlan();
+    return;
+  }
+  openFixOverspendModal();
+}
+
+async function openShortagePlan() {
+  const target = getMostRelevantCreditCardPaymentCat();
+  if (target?.cat?.id) {
+    openCatDetail(target.cat.id, target.group.id);
+    document.querySelector(`.cat-row[data-cat-id="${target.cat.id}"]`)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    toast('Keeep houdt deze betaling apart, zodat je dit gericht kunt aanvullen.');
+    return;
+  }
+  const amount = Math.abs(calcOnBudgetAccountTotal());
+  const message = `Je budget staat ${fmt(amount)} onder nul. Dat is geen foutmelding, maar wel iets om eerst op te vangen. Keeep helpt je dit apart te houden, zodat je daarna ziet welk geld je vrij kunt verdelen.`;
+  if (typeof kAlert === 'function') await kAlert(message, 'Budget onder nul');
+  else alert(message);
 }
 
 function openFixOverspendModal() {
@@ -2613,6 +2689,16 @@ function accTypeLabel(type) {
 // ── BUDGET INPUT ──────────────────────────────────────────────────────────
 async function setBudget(catId, rawVal) {
   const cents = parseBedrag(rawVal);
+  await setBudgetCents(catId, cents);
+}
+
+async function setBudgetIncludingRollover(catId, rawVal) {
+  const displayCents = parseBedrag(rawVal);
+  const rollover = calcCatRollover(catId);
+  await setBudgetCents(catId, displayCents - rollover);
+}
+
+async function setBudgetCents(catId, cents) {
   const bm    = getBudgetMonth(currentYear, currentMonth);
   const current = Math.round((bm[catId] || 0) * 100);
   const reduction = Math.max(0, current - cents);
@@ -2804,7 +2890,11 @@ function setAssignTab(tab) {
 function getAssignableCategories() {
   return groups.flatMap(group =>
     group.cats
-      .filter(cat => !isIncomeCat(cat.id) && !(typeof isProtectedBudgetCat === 'function' && isProtectedBudgetCat(cat.id)))
+      .filter(cat =>
+        !(typeof isSystemBudgetGroup === 'function' && isSystemBudgetGroup(group)) &&
+        !isIncomeCat(cat.id) &&
+        !(typeof isProtectedBudgetCat === 'function' && isProtectedBudgetCat(cat.id))
+      )
       .map(cat => ({ group, cat }))
   );
 }
@@ -3231,10 +3321,11 @@ function showPage(name) {
       insights: 'Inzichten'
     }[name] || 'Budget';
   }
+  const shellTopbarVisible = ['budget', 'transactions', 'insights'].includes(name);
   const monthVisible = name === 'budget' || name === 'insights';
   const budgetTopbarVisible = name === 'budget';
   const appTopbar = document.querySelector('.app-topbar');
-  appTopbar?.classList.toggle('is-hidden-page', !monthVisible && !budgetTopbarVisible);
+  appTopbar?.classList.toggle('is-hidden-page', !shellTopbarVisible);
   appTopbar?.classList.toggle('is-insights-page', name === 'insights');
   document.getElementById('ahead-panel')?.classList.toggle('is-hidden-page', !budgetTopbarVisible);
   document.getElementById('insights-view-wrapper')?.classList.toggle('is-hidden-page', name !== 'insights');
@@ -3621,9 +3712,9 @@ function renderInsights() {
   const periodCopy = insightPeriodCopy(rangeLabel, rangeFrom, rangeTo);
   const readyToAssignNow = typeof calcReadyToAssign === 'function' ? calcReadyToAssign() : 0;
   grid.appendChild(insightCardKPI('Je financiële positie', fmt(nwNow), insightPositionCoach(nwNow), nwNow >= 0 ? 'green' : 'red'));
-  grid.appendChild(insightCardKPI(periodCopy.developmentTitle, signedFmt(rangeDelta), insightDevelopmentCoach(rangeDelta, periodCopy), rangeDelta < 0 ? 'red' : 'green'));
+  grid.appendChild(insightCardKPI(periodCopy.developmentTitle, signedFmt(rangeDelta), insightDevelopmentCoach(rangeDelta, periodCopy, leftoverNow, otherMutations), rangeDelta < 0 ? 'red' : 'green'));
   grid.appendChild(insightCardKPI('Inkomen om te plannen', fmt(incNow), insightIncomeCoach(assignedNow, readyToAssignNow, incNow), 'green'));
-  grid.appendChild(insightCardKPI('Ruimte na uitgaven', fmt(leftoverNow), insightLeftoverCoach(leftoverNow, incNow, spNow), leftoverNow < 0 ? 'red' : 'purple'));
+  grid.appendChild(insightCardKPI('Verschil inkomen en uitgaven', fmt(leftoverNow), insightLeftoverCoach(leftoverNow, incNow, spNow), leftoverNow < 0 ? 'red' : 'purple'));
   grid.appendChild(insightCardNetworthBridge({
     monthLabel: rangeLabel,
     periodCopy,
@@ -3633,6 +3724,7 @@ function renderInsights() {
     spent: spNow,
     other: otherMutations,
     leftover: leftoverNow,
+    other: otherMutations,
     delta: rangeDelta
   }));
   grid.appendChild(insightCardNetworth(

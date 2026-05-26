@@ -6,7 +6,7 @@
   <title>Keeep — Budget like you mean it</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="css/keeep.css?v=148">
+  <link rel="stylesheet" href="css/keeep.css?v=155">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0d0f14">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -16,6 +16,29 @@
 </head>
 <body>
   <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
+
+  <div class="beta-activation-overlay" id="beta-activation-overlay" aria-hidden="true">
+    <div class="beta-activation-card" role="dialog" aria-modal="true" aria-labelledby="beta-activation-title">
+      <div class="beta-activation-brand">
+        <img src="icons/icon.png" alt="" aria-hidden="true">
+        <div>
+          <div class="beta-activation-logo">Kee<span>ep</span></div>
+          <div class="beta-activation-tagline">Geef je geld een plan</div>
+        </div>
+      </div>
+      <div class="beta-activation-copy">
+        <h1 id="beta-activation-title">Private beta</h1>
+        <p>Vul je activatiecode in om deze beta-versie van Keeep te gebruiken.</p>
+      </div>
+      <form class="beta-activation-form" onsubmit="submitBetaActivation(event)">
+        <label for="beta-activation-code">Activatiecode</label>
+        <input id="beta-activation-code" type="text" autocomplete="off" spellcheck="false" placeholder="Vul je code in">
+        <div class="beta-activation-error" id="beta-activation-error" role="alert"></div>
+        <button class="btn-primary beta-activation-submit" type="submit">Activeren</button>
+      </form>
+      <p class="beta-activation-note">Deze code is alleen bedoeld voor de private beta. Je budget blijft lokaal op dit apparaat.</p>
+    </div>
+  </div>
 
 <div class="shell">
 
@@ -159,7 +182,7 @@
             <span class="budget-overspend-sub" id="budget-overspend-sub">Verplaats geld of verlaag een potje om je maand weer kloppend te maken.</span>
           </div>
         </div>
-        <button class="budget-overspend-btn" onclick="openFixOverspendModal()">Budget in balans brengen →</button>
+        <button class="budget-overspend-btn" id="budget-overspend-action" onclick="handleBudgetAlertAction()">Budget in balans brengen →</button>
       </div>
 
       <!-- Filter + zoek balk -->
@@ -411,6 +434,7 @@
 <div class="ob-overlay" id="ob-overlay" aria-hidden="true">
   <div class="ob-card" role="dialog" aria-modal="true" aria-labelledby="ob-title">
     <div class="ob-progress-wrap"><div class="ob-progress-bar" id="ob-progress"></div></div>
+    <button class="ob-close" type="button" aria-label="Setup sluiten" onclick="closeOnboarding()">✕</button>
     <div class="ob-body" id="ob-body"></div>
     <div class="ob-footer">
       <button class="ob-btn-back" id="ob-back" onclick="obBack()">Terug</button>
@@ -645,40 +669,32 @@
           </div>
           <button class="btn-primary" onclick="createNewBudget()" type="button">Nieuw budget aanmaken</button>
         </div>
-        <div class="settings-row">
-          <div class="settings-reset-info">
-            <div class="settings-reset-label">Budget resetten</div>
-            <div class="settings-reset-desc">Wis alleen toewijzingen en automatische aanvullingen. Rekeningen en transacties blijven bewaard.</div>
-          </div>
-          <button class="btn-secondary" onclick="resetBudgets()" type="button">Budget resetten</button>
-        </div>
       </section>
 
       <section class="settings-section">
         <div class="settings-section-title">Gegevens</div>
         <div class="settings-row">
           <div class="settings-reset-info">
+            <div class="settings-reset-label">Automatische back-upmap</div>
+            <div class="settings-reset-desc">
+              Kies waar Keeep automatische back-ups mag bewaren.
+              <span class="settings-path" id="auto-backup-path">Nog geen map gekozen</span>
+            </div>
+          </div>
+          <button class="btn-primary" onclick="chooseAutoBackupFolder()" type="button">Map kiezen</button>
+        </div>
+        <div class="settings-row">
+          <div class="settings-reset-info">
             <div class="settings-reset-label">Back-up maken en herstellen</div>
             <div class="settings-reset-desc">Download een kopie van je budget of herstel een eerder opgeslagen back-upbestand.</div>
           </div>
           <div class="settings-card-actions">
-            <button class="btn-secondary" onclick="exportBackup()" type="button">Back-up maken</button>
-            <label class="btn-secondary">
+            <button class="btn-primary" onclick="exportBackup()" type="button">Back-up maken</button>
+            <label class="btn-primary">
               Back-up herstellen
               <input type="file" accept=".json" style="display:none" onchange="importBackup(this.files[0]);this.value=''">
             </label>
           </div>
-        </div>
-      </section>
-
-      <section class="settings-section settings-section--danger">
-        <div class="settings-section-title">Geavanceerd</div>
-        <div class="settings-row settings-row--danger">
-          <div class="settings-reset-info">
-            <div class="settings-reset-label">Standaardindeling herstellen</div>
-            <div class="settings-reset-desc">Wis alle rekeningen, transacties en budgetten en zet de standaardindeling terug. Dit kan niet ongedaan worden gemaakt.</div>
-          </div>
-          <button class="btn-danger" onclick="resetAll()" type="button">Standaard herstellen</button>
         </div>
       </section>
     </div>
@@ -761,8 +777,13 @@
       <!-- Maandelijks -->
       <div class="goal-pane" data-pane="monthly">
         <div class="goal-field">
-          <label class="goal-label">Aanvullen op</label>
-          <select id="goal-monthday" class="goal-input">
+          <label class="goal-label">Volgende maand wil ik</label>
+          <select id="goal-monthly-next" class="goal-input" onchange="goalUpdateMonthlyHelper()">
+            <option value="refill" selected>Aanvullen tot het maandbedrag</option>
+            <option value="set">Het maandbedrag opnieuw toewijzen</option>
+          </select>
+        </div>
+        <select id="goal-monthday" class="goal-hidden-default" aria-hidden="true" tabindex="-1">
             <option value="last" selected>Laatste dag van de maand</option>
             <option value="1">De 1e</option>
             <option value="5">De 5e</option>
@@ -771,13 +792,8 @@
             <option value="20">De 20e</option>
             <option value="25">De 25e</option>
             <option value="28">De 28e</option>
-          </select>
-        </div>
-        <select id="goal-monthly-next" class="goal-hidden-default" aria-hidden="true" tabindex="-1">
-          <option value="refill" selected>Aanvullen tot het bedrag</option>
-          <option value="set">Het bedrag opnieuw toewijzen</option>
         </select>
-        <div class="goal-helper">Keeep vult dit potje elke maand aan tot dit bedrag.</div>
+        <div class="goal-helper" id="goal-monthly-helper">Keeep vult dit potje volgende maand aan tot het maandbedrag. Staat er al geld in, dan hoef je alleen het verschil bij te leggen.</div>
       </div>
 
       <!-- Jaarlijks -->
@@ -833,8 +849,8 @@
 <!-- Contextmenu -->
 <div id="ctx-menu" class="ctx-menu">
   <button onclick="ctxSetGoal()">Automatisch vullen instellen</button>
-  <button onclick="ctxRename()">✏️ Bewerken</button>
-  <button onclick="ctxDelete()">🗑 Verwijderen</button>
+  <button onclick="ctxRename()">Bewerken</button>
+  <button onclick="ctxDelete()">Verwijderen</button>
 </div>
 
 <!-- Inkomen -->
@@ -877,12 +893,12 @@
 
 <!-- JS — volgorde is belangrijk -->
 <script src="js/dialog.js?v=14"></script>
-<script src="js/state.js?v=35"></script>
+<script src="js/state.js?v=36"></script>
 <script src="js/format.js?v=12"></script>
-<script src="js/render.js?v=179"></script>
-<script src="js/modals.js?v=77"></script>
-<script src="js/onboarding.js?v=1"></script>
-<script src="js/app.js?v=66"></script>
+<script src="js/render.js?v=185"></script>
+<script src="js/modals.js?v=80"></script>
+<script src="js/onboarding.js?v=13"></script>
+<script src="js/app.js?v=69"></script>
 <script>
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch(() => {});

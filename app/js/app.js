@@ -132,6 +132,37 @@ function bindSettingsControls() {
     });
     fontControls.dataset.bound = '1';
   }
+  renderAutoBackupFolder();
+}
+
+function renderAutoBackupFolder() {
+  const label = document.getElementById('auto-backup-path');
+  if (!label) return;
+  label.textContent = autoBackupFolder || 'Nog geen map gekozen';
+  label.title = autoBackupFolder || '';
+}
+
+async function chooseAutoBackupFolder() {
+  if (!window.__TAURI__?.dialog) {
+    toast('Automatische back-upmap is beschikbaar in de desktop-app.');
+    return;
+  }
+  try {
+    const { open } = window.__TAURI__.dialog;
+    const folder = await open({
+      directory: true,
+      multiple: false,
+      title: 'Kies automatische back-upmap',
+    });
+    if (!folder || Array.isArray(folder)) return;
+    autoBackupFolder = folder;
+    S.set('autoBackupFolder', autoBackupFolder);
+    renderAutoBackupFolder();
+    toast('Back-upmap opgeslagen.');
+  } catch (err) {
+    console.error('Back-upmap kiezen mislukt:', err);
+    toast('Back-upmap kiezen mislukt.');
+  }
 }
 
 // ── TOAST ─────────────────────────────────────────────────────────────────
@@ -893,6 +924,87 @@ function getDefaultIncomeCatId() {
   return grp?.cats[0]?.id ?? null;
 }
 
+// ── SYSTEEMCATEGORIEËN ────────────────────────────────────────────────────
+const SYSTEM_GROUP_NAME = 'Systeem';
+const BALANCE_CORRECTION_CAT_NAME = 'Saldo correctie';
+const BALANCE_CORRECTION_ROLE = 'balance_correction';
+
+function isSystemBudgetGroup(group) {
+  return group?.name === SYSTEM_GROUP_NAME || group?._system === true;
+}
+
+function isSystemBudgetCat(catId) {
+  if (!catId) return false;
+  return groups.some(group =>
+    isSystemBudgetGroup(group) &&
+    group.cats?.some(cat => cat.id === catId)
+  );
+}
+
+function isProtectedBudgetCat(catId) {
+  return isSystemBudgetCat(catId);
+}
+
+function isBalanceCorrectionCat(catId) {
+  if (!catId) return false;
+  return groups.some(group =>
+    group.cats?.some(cat => cat.id === catId && (cat._systemRole === BALANCE_CORRECTION_ROLE || cat.name === BALANCE_CORRECTION_CAT_NAME))
+  );
+}
+
+function isBalanceCorrectionTxn(tx) {
+  if (!tx) return false;
+  const payee = String(tx.payee || '').trim().replace(/\s+/g, ' ').toLowerCase();
+  return tx.isBalanceCorrection === true ||
+    isBalanceCorrectionCat(tx.catId) ||
+    payee === 'saldocorrectie' ||
+    payee === 'saldo correctie' ||
+    payee === 'rekening controleren';
+}
+
+function ensureBalanceCorrectionCategory() {
+  let changed = false;
+  let group = groups.find(isSystemBudgetGroup);
+  if (!group) {
+    group = { id: genId(), name: SYSTEM_GROUP_NAME, cats: [], _system: true };
+    groups.push(group);
+    changed = true;
+  } else {
+    if (group.name !== SYSTEM_GROUP_NAME) { group.name = SYSTEM_GROUP_NAME; changed = true; }
+    if (group._system !== true) { group._system = true; changed = true; }
+    if (!Array.isArray(group.cats)) { group.cats = []; changed = true; }
+  }
+
+  let cat = group.cats.find(c => c._systemRole === BALANCE_CORRECTION_ROLE || c.name === BALANCE_CORRECTION_CAT_NAME);
+  if (!cat) {
+    cat = { id: genId(), name: BALANCE_CORRECTION_CAT_NAME, _systemRole: BALANCE_CORRECTION_ROLE };
+    group.cats.push(cat);
+    changed = true;
+  } else {
+    if (cat.name !== BALANCE_CORRECTION_CAT_NAME) { cat.name = BALANCE_CORRECTION_CAT_NAME; changed = true; }
+    if (cat._systemRole !== BALANCE_CORRECTION_ROLE) { cat._systemRole = BALANCE_CORRECTION_ROLE; changed = true; }
+  }
+
+  transactions.forEach(tx => {
+    if (isBalanceCorrectionTxn(tx) && (tx.catId !== cat.id || tx.isBalanceCorrection !== true || tx.payee !== 'Saldocorrectie')) {
+      tx.catId = cat.id;
+      tx.isBalanceCorrection = true;
+      tx.payee = 'Saldocorrectie';
+      changed = true;
+    }
+  });
+
+  if (changed) {
+    S.set('groups', groups);
+    S.set('transactions', transactions);
+  }
+  return cat.id;
+}
+
+function getBalanceCorrectionCatId() {
+  return ensureBalanceCorrectionCategory();
+}
+
 
 // ── BUDGET KOPIËREN VAN VORIGE MAAND ──────────────────────────────────────
 async function copyBudgetFromPrevMonth() {
@@ -969,11 +1081,74 @@ function closeSidebar() {
   document.getElementById('sidebar-overlay').classList.remove('active');
 }
 
+// ── PRIVATE BETA ACTIVATIE ────────────────────────────────────────────────
+const BETA_ACTIVATION_KEY = 'keeep_beta_activated_v1';
+const BETA_ACTIVATION_HASHES = [
+  '2810309d295fe4b8514686deefcbdc144af790f2a4dd8b4095869099fdf76a0d',
+  '8a3159f41a626dc1e651467ad1543eb9dfabc36e40d4a6c3314efed7f4030ada',
+  '90c5ae30e447da7bdec6ef7e82a3679a58bac12020a65ce3930daabf0a9e9937'
+];
+
+function normalizeBetaActivationCode(value) {
+  return String(value || '').trim().toUpperCase().replace(/\s+/g, '-');
+}
+
+async function sha256Hex(value) {
+  const bytes = new TextEncoder().encode(value);
+  const hash = await crypto.subtle.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(hash), byte => byte.toString(16).padStart(2, '0')).join('');
+}
+
+function betaActivationRequired() {
+  return isTauriApp() && localStorage.getItem(BETA_ACTIVATION_KEY) !== '1';
+}
+
+function showBetaActivationGate() {
+  const overlay = document.getElementById('beta-activation-overlay');
+  const input = document.getElementById('beta-activation-code');
+  const error = document.getElementById('beta-activation-error');
+  if (!overlay) return;
+  overlay.classList.add('active');
+  overlay.setAttribute('aria-hidden', 'false');
+  if (error) error.textContent = '';
+  setTimeout(() => input?.focus(), 60);
+}
+
+function hideBetaActivationGate() {
+  const overlay = document.getElementById('beta-activation-overlay');
+  if (!overlay) return;
+  overlay.classList.remove('active');
+  overlay.setAttribute('aria-hidden', 'true');
+}
+
+async function submitBetaActivation(event) {
+  event?.preventDefault?.();
+  const input = document.getElementById('beta-activation-code');
+  const error = document.getElementById('beta-activation-error');
+  const code = normalizeBetaActivationCode(input?.value);
+  const hash = await sha256Hex(code);
+  if (!BETA_ACTIVATION_HASHES.includes(hash)) {
+    if (error) error.textContent = 'Deze activatiecode klopt niet.';
+    input?.focus();
+    input?.select();
+    return;
+  }
+  localStorage.setItem(BETA_ACTIVATION_KEY, '1');
+  hideBetaActivationGate();
+  init();
+}
+
 // ── INIT ──────────────────────────────────────────────────────────────────
 async function init() {
   // Thema direct toepassen
   setTheme(appTheme);
   setFontScale(uiFontScale);
+
+  if (betaActivationRequired()) {
+    showBetaActivationGate();
+    return;
+  }
+
   bindSettingsControls();
 
   // Native/app data laden, anders de lokale server gebruiken
@@ -1011,6 +1186,7 @@ async function init() {
   // ── INKOMEN GROEP — altijd aanwezig ──────────────────────────────────────
   ensureIncomeGroup();
   ensureCreditCardPaymentGroup();
+  ensureBalanceCorrectionCategory();
   normalizeAccountBudgetStatus();
   ensureForwardPlanInSavings();
   ensureThreeBudgetGroups();
@@ -1396,6 +1572,7 @@ Object.assign(window, {
   setTheme,
   setFontScale,
   changeFontScale,
+  chooseAutoBackupFolder,
   exportBackup,
   importBackup,
   resetBudgets,

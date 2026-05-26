@@ -6,7 +6,6 @@ const ONBOARDING_KEY = 'keeep_onboarded';
 
 const BASE_CATEGORIES = [
   // VASTE LASTEN
-  { group: 'Vaste lasten', name: '🚗 Autoverzekering', selected: false, goalType: 'monthly', description: 'WA, beperkt casco of allrisk' },
   { group: 'Vaste lasten', name: '🏦 Bankkosten', selected: true, goalType: 'monthly', description: 'Kosten voor betaalrekening en bankdiensten' },
   { group: 'Vaste lasten', name: '⚡ Energie', selected: true, goalType: 'monthly', description: 'Gas en stroom' },
   { group: 'Vaste lasten', name: '🏛️ Gemeentelijke heffingen', selected: true, goalType: 'monthly', description: 'Afvalstoffenheffing, rioolheffing en lokale lasten' },
@@ -17,60 +16,95 @@ const BASE_CATEGORIES = [
   { group: 'Vaste lasten', name: '🛡️ Verzekeringen algemeen', selected: true, goalType: 'monthly', description: 'Overige verzekeringen' },
   { group: 'Vaste lasten', name: '💧 Water', selected: true, goalType: 'monthly', description: 'Waterrekening' },
   { group: 'Vaste lasten', name: '🏡 Waterschapsbelasting', selected: false, goalType: 'monthly', description: 'Waterschapsbelasting' },
-  { group: 'Vaste lasten', name: '🛣️ Wegenbelasting', selected: false, goalType: 'monthly', description: 'Motorrijtuigenbelasting' },
   { group: 'Vaste lasten', name: '🏥 Zorgverzekering', selected: true, goalType: 'monthly', description: 'Basisverzekering en aanvullende zorgverzekering' },
 
   // DAGELIJKS LEVEN
-  { group: 'Dagelijks leven', name: '🔧 Auto onderhoud', selected: false, goalType: 'target', description: 'Onderhoud, reparaties en APK' },
-  { group: 'Dagelijks leven', name: '⛽ Brandstof', selected: false, goalType: 'monthly', description: 'Benzine, diesel, LPG of laden' },
   { group: 'Dagelijks leven', name: '🛒 Boodschappen', selected: true, goalType: 'monthly', description: 'Supermarkt, drogist en basisboodschappen' },
   { group: 'Dagelijks leven', name: '👓 Bril / Lenzen', selected: false, goalType: 'target', description: 'Bril, lenzen en oogzorg' },
-  { group: 'Dagelijks leven', name: '🏥 Dierenarts', selected: false, goalType: 'target', description: 'Dierenarts en medische kosten' },
   { group: 'Dagelijks leven', name: '🧴 Drogist & verzorging', selected: true, goalType: 'monthly', description: 'Persoonlijke verzorging en huishoudelijke drogistartikelen' },
-  { group: 'Dagelijks leven', name: '💶 Eigen risico', selected: true, goalType: 'target', description: 'Buffer voor verplicht eigen risico' },
-  { group: 'Dagelijks leven', name: '🔌 Elektrisch laden', selected: false, goalType: 'monthly', description: 'Laadkosten voor elektrische auto' },
   { group: 'Dagelijks leven', name: '🚲 Fiets', selected: false, goalType: 'target', description: 'Fiets, onderhoud en accessoires' },
   { group: 'Dagelijks leven', name: '🧘 Fysio / Therapie', selected: false, goalType: 'monthly', description: 'Fysiotherapie, psycholoog of andere zorg' },
   { group: 'Dagelijks leven', name: '🧼 Huishouden', selected: true, goalType: 'monthly', description: 'Schoonmaakmiddelen en huishoudelijke spullen' },
-  { group: 'Dagelijks leven', name: '👶 Kinderopvang', selected: false, goalType: 'monthly', description: 'Kinderopvang, gastouder of BSO' },
   { group: 'Dagelijks leven', name: '👕 Kleding', selected: true, goalType: 'monthly', description: 'Kleding en schoenen' },
-  { group: 'Dagelijks leven', name: '🧒 Kleding kinderen', selected: false, goalType: 'monthly', description: 'Kinderkleding en schoenen' },
   { group: 'Dagelijks leven', name: '💊 Medicijnen', selected: false, goalType: 'monthly', description: 'Medicatie en apotheekkosten' },
   { group: 'Dagelijks leven', name: '🚆 OV', selected: false, goalType: 'monthly', description: 'Trein, bus, tram, metro en OV-chipkaart' },
-  { group: 'Dagelijks leven', name: '🅿️ Parkeren', selected: false, goalType: 'monthly', description: 'Parkeerkosten en vergunningen' },
-  { group: 'Dagelijks leven', name: '💪 Sport / Gym', selected: false, goalType: 'monthly', description: 'Sportschool, sportclub of lessen' },
-  { group: 'Dagelijks leven', name: '🎒 Schoolkosten', selected: false, goalType: 'target', description: 'Schoolspullen, ouderbijdrage en excursies' },
   { group: 'Dagelijks leven', name: '🦷 Tandarts', selected: false, goalType: 'target', description: 'Tandarts en mondzorg' },
   { group: 'Dagelijks leven', name: '🐾 Voeding huisdieren', selected: false, goalType: 'monthly', description: 'Dierenvoeding en snacks' },
 
-  // SPAARDOELEN / VRIJE RUIMTE
-  { group: 'Spaardoelen / vrije ruimte', name: '🏦 Algemene buffer', selected: true, goalType: 'target', description: 'Algemene financiële reserve' },
-  { group: 'Spaardoelen / vrije ruimte', name: '🆘 Noodfonds', selected: true, goalType: 'target', description: 'Buffer voor echte noodgevallen' },
-  { group: 'Spaardoelen / vrije ruimte', name: '✈️ Vakantie', selected: false, goalType: 'target', description: 'Vakantiebudget' },
-  { group: 'Spaardoelen / vrije ruimte', name: '🎁 Cadeaus', selected: false, goalType: 'monthly', description: 'Verjaardagen, feestdagen en attenties' },
-  { group: 'Spaardoelen / vrije ruimte', name: '🍽️ Uit eten', selected: false, goalType: 'monthly', description: 'Restaurants, cafés en afhalen' },
-  { group: 'Spaardoelen / vrije ruimte', name: '🎉 Uitjes & entertainment', selected: false, goalType: 'monthly', description: 'Bioscoop, concerten, festivals en dagjes weg' },
-  { group: 'Spaardoelen / vrije ruimte', name: '💸 Vrij te besteden', selected: false, goalType: 'monthly', description: 'Fun money zonder schuldgevoel' },
+  // VRIJE RUIMTE
+  { group: 'Vrije ruimte', name: '💇 Beauty / kapper', selected: false, goalType: 'monthly', description: 'Beauty en kapper' },
+  { group: 'Vrije ruimte', name: '📚 Boeken', selected: false, goalType: 'monthly', description: 'Boeken en lezen' },
+  { group: 'Vrije ruimte', name: '🎁 Cadeaus', selected: false, goalType: 'monthly', description: 'Cadeaus en attenties' },
+  { group: 'Vrije ruimte', name: '🎤 Concerten / evenementen', selected: false, goalType: 'monthly', description: 'Concerten en evenementen' },
+  { group: 'Vrije ruimte', name: '🎡 Dagjes weg', selected: false, goalType: 'monthly', description: 'Dagjes weg' },
+  { group: 'Vrije ruimte', name: '🔌 Elektronica', selected: false, goalType: 'monthly', description: 'Elektronica' },
+  { group: 'Vrije ruimte', name: '🎮 Games & apps', selected: false, goalType: 'monthly', description: 'Games en apps' },
+  { group: 'Vrije ruimte', name: '🎨 Hobby’s', selected: false, goalType: 'monthly', description: 'Hobby’s' },
+  { group: 'Vrije ruimte', name: '🛋️ Interieur', selected: false, goalType: 'monthly', description: 'Interieur' },
+  { group: 'Vrije ruimte', name: '👗 Kleding extra', selected: false, goalType: 'monthly', description: 'Extra kleding' },
+  { group: 'Vrije ruimte', name: '☕ Koffie buiten de deur', selected: false, goalType: 'monthly', description: 'Koffie buiten de deur' },
+  { group: 'Vrije ruimte', name: '🧸 Speelgoed', selected: false, goalType: 'monthly', description: 'Speelgoed' },
+  { group: 'Vrije ruimte', name: '🏋️ Sport / fitness', selected: false, goalType: 'monthly', description: 'Sport en fitness' },
+  { group: 'Vrije ruimte', name: '🍽️ Uit eten & afhalen', selected: false, goalType: 'monthly', description: 'Uit eten en afhalen' },
+  { group: 'Vrije ruimte', name: '✈️ Vakantie', selected: false, goalType: 'monthly', description: 'Vakantie' },
+  { group: 'Vrije ruimte', name: '💸 Vrij te besteden', selected: false, goalType: 'monthly', description: 'Vrij te besteden' },
+  { group: 'Vrije ruimte', name: '🧳 Weekend weg', selected: false, goalType: 'monthly', description: 'Weekend weg' },
+
+  // VOOR LATER
+  { group: 'Voor later', name: '🔧 APK / onderhoud', selected: false, goalType: 'target', description: 'APK en onderhoud' },
+  { group: 'Voor later', name: '🧾 Belasting', selected: false, goalType: 'target', description: 'Belasting' },
+  { group: 'Voor later', name: '🛟 Buffer', selected: true, goalType: 'target', description: 'Buffer' },
+  { group: 'Voor later', name: '🐾 Dierenarts', selected: false, goalType: 'target', description: 'Dierenarts' },
+  { group: 'Voor later', name: '🏥 Eigen risico zorg', selected: true, goalType: 'target', description: 'Eigen risico zorg' },
+  { group: 'Voor later', name: '🎊 Feestdagen', selected: false, goalType: 'target', description: 'Feestdagen' },
+  { group: 'Voor later', name: '🛍️ Grote aankopen', selected: false, goalType: 'target', description: 'Grote aankopen' },
+  { group: 'Voor later', name: '📅 Jaarlijkse kosten', selected: false, goalType: 'target', description: 'Jaarlijkse kosten' },
+  { group: 'Voor later', name: '🎄 Kerst', selected: false, goalType: 'target', description: 'Kerst' },
+  { group: 'Voor later', name: '🪑 Meubels', selected: false, goalType: 'target', description: 'Meubels' },
+  { group: 'Voor later', name: '💻 Nieuwe laptop / computer', selected: false, goalType: 'target', description: 'Nieuwe laptop of computer' },
+  { group: 'Voor later', name: '📱 Nieuwe telefoon', selected: false, goalType: 'target', description: 'Nieuwe telefoon' },
+  { group: 'Voor later', name: '🚗 Onderhoud auto', selected: false, goalType: 'target', description: 'Onderhoud auto' },
+  { group: 'Voor later', name: '🚲 Onderhoud fiets', selected: false, goalType: 'target', description: 'Onderhoud fiets' },
+  { group: 'Voor later', name: '🏠 Onderhoud woning', selected: false, goalType: 'target', description: 'Onderhoud woning' },
+  { group: 'Voor later', name: '☔ Onvoorzien', selected: false, goalType: 'target', description: 'Onvoorzien' },
+  { group: 'Voor later', name: '🌱 Pensioen / later', selected: false, goalType: 'target', description: 'Pensioen of later' },
+  { group: 'Voor later', name: '🏦 Sparen algemeen', selected: false, goalType: 'target', description: 'Sparen algemeen' },
+  { group: 'Voor later', name: '🏖️ Vakantiepot', selected: false, goalType: 'target', description: 'Vakantiepot' },
+  { group: 'Voor later', name: '🎂 Verjaardagen', selected: false, goalType: 'target', description: 'Verjaardagen' },
 ];
 
 const SUBSCRIPTION_CATEGORIES = [
-  { group: 'Dagelijks leven', name: '🎧 Spotify', selected: false, goalType: 'monthly', description: 'Muziek, podcasts en audio via Spotify' },
-  { group: 'Dagelijks leven', name: '🎬 Netflix', selected: false, goalType: 'monthly', description: 'Films en series via Netflix' },
-  { group: 'Dagelijks leven', name: '📺 Videoland', selected: false, goalType: 'monthly', description: 'Nederlandse en internationale series via Videoland' },
-  { group: 'Dagelijks leven', name: '▶️ YouTube', selected: false, goalType: 'monthly', description: 'YouTube Premium of YouTube Music' },
-  { group: 'Dagelijks leven', name: '🏰 Disney+', selected: false, goalType: 'monthly', description: 'Films en series via Disney+' },
-  { group: 'Dagelijks leven', name: '🎞️ HBO Max', selected: false, goalType: 'monthly', description: 'Films en series via HBO Max' },
-  { group: 'Dagelijks leven', name: '🍿 Prime Video', selected: false, goalType: 'monthly', description: 'Films, series en Amazon Prime Video' },
-  { group: 'Dagelijks leven', name: '☁️ Cloudopslag', selected: false, goalType: 'monthly', description: 'iCloud, Google One, Dropbox of OneDrive' },
-  { group: 'Dagelijks leven', name: '💻 Software & apps', selected: false, goalType: 'monthly', description: 'Apps, software en online tools' },
-  { group: 'Dagelijks leven', name: '📡 Overige abonnementen', selected: false, goalType: 'monthly', description: 'Andere terugkerende abonnementen die niet ergens anders passen' },
+  { group: 'Vaste lasten', name: '🤖 ChatGPT', selected: false, goalType: 'monthly', description: 'ChatGPT Plus, Pro of Team' },
+  { group: 'Vaste lasten', name: '🎧 Spotify', selected: false, goalType: 'monthly', description: 'Muziek, podcasts en audio via Spotify' },
+  { group: 'Vaste lasten', name: '🎬 Netflix', selected: false, goalType: 'monthly', description: 'Films en series via Netflix' },
+  { group: 'Vaste lasten', name: '📺 Videoland', selected: false, goalType: 'monthly', description: 'Nederlandse en internationale series via Videoland' },
+  { group: 'Vaste lasten', name: '▶️ YouTube', selected: false, goalType: 'monthly', description: 'YouTube Premium of YouTube Music' },
+  { group: 'Vaste lasten', name: '🏰 Disney+', selected: false, goalType: 'monthly', description: 'Films en series via Disney+' },
+  { group: 'Vaste lasten', name: '🎞️ HBO Max', selected: false, goalType: 'monthly', description: 'Films en series via HBO Max' },
+  { group: 'Vaste lasten', name: '🍿 Prime Video', selected: false, goalType: 'monthly', description: 'Films, series en Amazon Prime Video' },
+  { group: 'Vaste lasten', name: '☁️ Cloudopslag', selected: false, goalType: 'monthly', description: 'iCloud, Google One, Dropbox of OneDrive' },
+  { group: 'Vaste lasten', name: '🏅 Contributie', selected: false, goalType: 'monthly', description: 'Vereniging of club' },
+  { group: 'Vaste lasten', name: '💻 Software & apps', selected: false, goalType: 'monthly', description: 'Apps, software en online tools' },
+  { group: 'Vaste lasten', name: '💪 Sportschool', selected: false, goalType: 'monthly', description: 'Sportschool of fitnessabonnement' },
+  { group: 'Vaste lasten', name: '𝕏 Twitter / X', selected: false, goalType: 'monthly', description: 'X Premium of Twitter-abonnement' },
+  { group: 'Vaste lasten', name: '📡 Overige abonnementen', selected: false, goalType: 'monthly', description: 'Andere terugkerende abonnementen die niet ergens anders passen' },
 ];
 
 const CATEGORY_PACKS = {
-  car: [],
+  car: [
+    { group: 'Vaste lasten', name: '🚗 Autoverzekering', selected: true, goalType: 'monthly', description: 'WA, beperkt casco of allrisk' },
+    { group: 'Vaste lasten', name: '🛣️ Wegenbelasting', selected: true, goalType: 'monthly', description: 'Motorrijtuigenbelasting' },
+    { group: 'Dagelijks leven', name: '⛽ Brandstof', selected: true, goalType: 'monthly', description: 'Benzine, diesel of LPG' },
+    { group: 'Dagelijks leven', name: '🔌 Elektrisch laden', selected: false, goalType: 'monthly', description: 'Laadkosten voor elektrische auto' },
+    { group: 'Dagelijks leven', name: '🅿️ Parkeren', selected: false, goalType: 'monthly', description: 'Parkeerkosten en vergunningen' },
+  ],
   kids: [
-    { group: 'Dagelijks leven', name: '🧸 Speelgoed', selected: false, goalType: 'monthly', description: 'Speelgoed en cadeaus voor kinderen' },
-    { group: 'Dagelijks leven', name: '⚽ Sport / hobby kinderen', selected: false, goalType: 'monthly', description: 'Sport, muziekles en hobby\'s' },
+    { group: 'Dagelijks leven', name: '🍼 Babyspullen', selected: false, goalType: 'monthly', description: 'Babyspullen' },
+    { group: 'Dagelijks leven', name: '👶 Luiers', selected: false, goalType: 'monthly', description: 'Luiers' },
+    { group: 'Dagelijks leven', name: '🎒 Schoolkosten', selected: false, goalType: 'target', description: 'Schoolkosten' },
+    { group: 'Dagelijks leven', name: '🏫 Schoolkosten kinderen', selected: false, goalType: 'target', description: 'Schoolkosten kinderen' },
+    { group: 'Dagelijks leven', name: '⚽ Sport kinderen', selected: false, goalType: 'monthly', description: 'Sport kinderen' },
+    { group: 'Dagelijks leven', name: '💰 Zakgeld kinderen', selected: false, goalType: 'monthly', description: 'Zakgeld kinderen' },
   ],
   pets: [
     { group: 'Dagelijks leven', name: '🧸 Huisdier spullen', selected: false, goalType: 'monthly', description: 'Speeltjes, manden, kattenbakvulling en accessoires' },
@@ -81,7 +115,8 @@ const CATEGORY_PACKS = {
 const SETUP_GROUP_ORDER = [
   'Vaste lasten',
   'Dagelijks leven',
-  'Spaardoelen / vrije ruimte',
+  'Vrije ruimte',
+  'Voor later',
   'Schulden',
 ];
 
@@ -108,20 +143,32 @@ const RECOVERY_CATEGORIES = [
   { group: 'Schulden', name: '🆘 Buffer opbouwen', selected: false, goalType: 'target', description: 'Kleine buffer zodat roodstand minder snel terugkomt' },
 ];
 
-const SETUP_STEPS = ['profile', 'categories', 'review'];
+const SETUP_STEPS = ['profile', 'household', 'subscriptions', 'categories', 'accounts', 'assets', 'debts_accounts', 'review'];
+
+const SETUP_ACCOUNT_TYPE_OPTIONS = {
+  accounts: [
+    { value: 'checking', label: 'Betaalrekening' },
+    { value: 'savings', label: 'Spaarrekening' },
+    { value: 'cash', label: 'Contant' },
+    { value: 'credit', label: 'Creditcard' },
+  ],
+  assets: [
+    { value: 'car', label: 'Auto' },
+    { value: 'investment', label: 'Beleggingen' },
+    { value: 'property', label: 'Woning' },
+    { value: 'other_asset', label: 'Overig bezit' },
+  ],
+  debts: [
+    { value: 'auto_loan', label: 'Autolening' },
+    { value: 'mortgage', label: 'Hypotheek' },
+    { value: 'student_loan', label: 'Studieschuld DUO' },
+    { value: 'other_debt', label: 'Andere schuld' },
+  ],
+};
 
 const SETUP_ACCOUNT_TEMPLATES = [
   { name: 'Betaalrekening', type: 'checking', onBudget: true, selected: true },
-  { name: 'Cash', type: 'cash', onBudget: true, selected: false },
-  { name: 'Creditcard', type: 'credit', onBudget: true, selected: false },
   { name: 'Auto', type: 'car', onBudget: false, selected: false },
-  { name: 'Beleggingen', type: 'investment', onBudget: false, selected: false },
-  { name: 'Spaarrekening', type: 'savings', onBudget: false, selected: false },
-  { name: 'Woning', type: 'property', onBudget: false, selected: false },
-  { name: 'Autolening', type: 'auto_loan', onBudget: false, selected: false },
-  { name: 'Hypotheek', type: 'mortgage', onBudget: false, selected: false },
-  { name: 'Studielening DUO', type: 'student_loan', onBudget: false, selected: false },
-  { name: 'Andere schuld', type: 'other_debt', onBudget: false, selected: false },
 ];
 
 const _ob = {
@@ -191,16 +238,16 @@ function resetOnboardingState(options = {}) {
   _ob.mode = options.mode || 'first';
   _ob.resetData = !!options.resetData;
   _ob.clearExisting = !!options.resetData;
-  _ob.name = _ob.resetData ? '' : S?.get?.('userName', '') || '';
-  _ob.accounts = buildSetupAccounts();
+  _ob.name = S?.get?.('userName', '') || '';
   _ob.incomeSelected = {};
   _ob.groupNames = {};
   _ob.selected = {};
   _ob.details = {};
   _ob.household = { situation: 'single', car: false, pets: false, overdraft: 'unknown' };
+  _ob.accounts = buildSetupAccounts();
 
   const incomeGroup = !_ob.resetData ? groups.find(g => g.name === 'Inkomen') : null;
-  SETUP_INCOME_CATEGORIES.forEach(item => {
+  sortSetupItems(SETUP_INCOME_CATEGORIES).forEach(item => {
     const existing = incomeGroup?.cats.some(cat => cat.name === item.name);
     _ob.incomeSelected[item.name] = _ob.resetData ? item.selected !== false : existing || item.selected !== false;
   });
@@ -280,7 +327,12 @@ function renderObStep() {
   nextBtn.textContent = _obStep === SETUP_STEPS.length - 1 ? 'Budget maken' : 'Volgende';
 
   if (step === 'profile')    renderSetupProfile(body);
+  if (step === 'household')  renderSetupHousehold(body);
+  if (step === 'subscriptions') renderSetupSubscriptionStep(body);
   if (step === 'categories') renderSetupCategories(body);
+  if (step === 'accounts')   renderSetupAccountsStep(body, 'accounts');
+  if (step === 'assets')     renderSetupAccountsStep(body, 'assets');
+  if (step === 'debts_accounts') renderSetupAccountsStep(body, 'debts');
   if (step === 'review')     renderSetupReview(body);
 }
 
@@ -295,20 +347,24 @@ function renderSetupTitle(body, title, sub = '') {
 // ── STAP: PROFIEL ────────────────────────────────────────────────────────
 
 function renderSetupProfile(body) {
-  renderSetupTitle(body, 'Maak je budget', 'Geef je budget een naam. Daarna kies je rustig welke potjes je wilt starten.');
+  renderSetupTitle(body, 'Geef je budget een naam', 'Daarna helpen we je met een paar korte vragen om de basis goed in te stellen.');
+  const field = document.createElement('label');
+  field.className = 'ob-field-label';
+  field.innerHTML = '<span>Naam van je budget</span>';
   const input = document.createElement('input');
   input.type = 'text';
   input.className = 'ob-text-input';
-  input.placeholder = 'Bijv. Huishouden, Privé of Familie';
+  input.placeholder = 'Naam van je budget...';
   input.value = _ob.name;
   input.oninput = e => { _ob.name = e.target.value; };
   input.onkeydown = e => { if (e.key === 'Enter') obNext(); };
-  body.appendChild(input);
+  field.appendChild(input);
+  body.appendChild(field);
 
   if (_ob.resetData && _ob.mode !== 'first') {
     const note = document.createElement('p');
     note.className = 'ob-sub ob-inline-note';
-    note.textContent = 'Je begint opnieuw. Bij het maken van dit budget wordt je oude budget vervangen.';
+    note.textContent = 'Je maakt een nieuw budget. Maak eerst een back-up als je je huidige budget wilt bewaren.';
     body.appendChild(note);
   }
 
@@ -339,6 +395,7 @@ function renderSetupHousehold(body) {
     btn.textContent = s.label;
     btn.onclick = () => {
       _ob.household.situation = s.value;
+      initActiveCategoryState();
       situationGrid.querySelectorAll('.ob-household-btn').forEach(b => b.classList.remove('selected'));
       btn.classList.add('selected');
     };
@@ -360,6 +417,8 @@ function renderSetupHousehold(body) {
     btn.textContent = opt.label;
     btn.onclick = () => {
       _ob.household.car = opt.value;
+      initActiveCategoryState();
+      syncSetupAccountDefaults();
       carGrid.querySelectorAll('.ob-household-btn').forEach(b => b.classList.remove('selected'));
       btn.classList.add('selected');
     };
@@ -381,6 +440,7 @@ function renderSetupHousehold(body) {
     btn.textContent = opt.label;
     btn.onclick = () => {
       _ob.household.pets = opt.value;
+      initActiveCategoryState();
       petsGrid.querySelectorAll('.ob-household-btn').forEach(b => b.classList.remove('selected'));
       btn.classList.add('selected');
     };
@@ -424,10 +484,10 @@ function renderSetupIncome(body) {
   renderSetupTitle(body, 'Waar komt jouw inkomen maandelijks vandaan?', 'Kies de inkomstenbronnen die je wilt terugzien in je budgetoverzicht.');
   const grid = document.createElement('div');
   grid.className = 'ob-grid';
-  SETUP_INCOME_CATEGORIES.forEach(item => {
+  sortSetupItems(SETUP_INCOME_CATEGORIES).forEach(item => {
     const btn = document.createElement('button');
     btn.className = 'ob-option' + (_ob.incomeSelected[item.name] ? ' selected' : '');
-    btn.innerHTML = `<strong>${item.name}</strong><span>${item.description}</span>`;
+    btn.textContent = item.name;
     btn.onclick = () => {
       _ob.incomeSelected[item.name] = !_ob.incomeSelected[item.name];
       btn.classList.toggle('selected', _ob.incomeSelected[item.name]);
@@ -443,15 +503,15 @@ function renderSetupCategoryStep(body, groupName, title, sub) {
   const subscriptionNames = new Set(SUBSCRIPTION_CATEGORIES.map(item => item.name));
   const items = getActiveCategories().filter(item =>
     item.group === groupName &&
-    !(groupName === 'Dagelijks leven' && subscriptionNames.has(item.name))
+    !subscriptionNames.has(item.name)
   );
   const grid = document.createElement('div');
   grid.className = 'ob-grid';
-  items.forEach(item => {
+  sortSetupItems(items).forEach(item => {
     const id = setupCategoryId(item);
     const btn = document.createElement('button');
     btn.className = 'ob-option' + (_ob.selected[id] ? ' selected' : '');
-    btn.innerHTML = `<strong>${item.name}</strong><span>${item.description}</span>`;
+    btn.textContent = item.name;
     btn.onclick = () => {
       _ob.selected[id] = !_ob.selected[id];
       btn.classList.toggle('selected', _ob.selected[id]);
@@ -465,16 +525,16 @@ function renderSetupSubscriptionStep(body) {
   renderSetupTitle(
     body,
     'Welke abonnementen heb je?',
-    'We snappen dat het leven ook een beetje leuk moet blijven. Kies de abonnementen die elke maand terugkomen; we zetten ze onder Dagelijks leven.'
+    'Kies wat elke maand terugkomt. Keeep zet deze onder Vaste lasten, zodat je maandelijkse verplichtingen compleet zijn.'
   );
   initActiveCategoryState();
   const grid = document.createElement('div');
   grid.className = 'ob-grid';
-  SUBSCRIPTION_CATEGORIES.forEach(item => {
+  sortSetupItems(SUBSCRIPTION_CATEGORIES).forEach(item => {
     const id = setupCategoryId(item);
     const btn = document.createElement('button');
     btn.className = 'ob-option' + (_ob.selected[id] ? ' selected' : '');
-    btn.innerHTML = `<strong>${item.name}</strong><span>${item.description}</span>`;
+    btn.textContent = item.name;
     btn.onclick = () => {
       _ob.selected[id] = !_ob.selected[id];
       btn.classList.toggle('selected', _ob.selected[id]);
@@ -521,11 +581,11 @@ function renderSetupDebts(body) {
     body.appendChild(label);
     const grid = document.createElement('div');
     grid.className = 'ob-grid';
-    getActiveCategories().filter(item => item.group === 'Schulden').forEach(item => {
+    sortSetupItems(getActiveCategories().filter(item => item.group === 'Schulden')).forEach(item => {
       const id = setupCategoryId(item);
       const btn = document.createElement('button');
       btn.className = 'ob-option' + (_ob.selected[id] ? ' selected' : '');
-      btn.innerHTML = `<strong>${item.name}</strong><span>${item.description}</span>`;
+      btn.textContent = item.name;
       btn.onclick = () => {
         _ob.selected[id] = !_ob.selected[id];
         btn.classList.toggle('selected', _ob.selected[id]);
@@ -539,17 +599,6 @@ function renderSetupDebts(body) {
 // ── STAP: REKENINGEN ─────────────────────────────────────────────────────
 
 function buildSetupAccounts() {
-  if (_ob.resetData) {
-    return SETUP_ACCOUNT_TEMPLATES.map(template => ({
-      id: genId(),
-      name: template.name,
-      type: template.type,
-      onBudget: isBudgetActivityAccountType(template.type),
-      balance: '',
-      selected: template.selected === true,
-      existing: false,
-    }));
-  }
   if (!_ob.resetData && accounts.length) {
     return accounts.map(acc => ({
       id: acc.id,
@@ -561,39 +610,108 @@ function buildSetupAccounts() {
       existing: true,
     }));
   }
-  return SETUP_ACCOUNT_TEMPLATES.map(template => ({
-    id: genId(),
-    name: template.name,
-    type: template.type,
-    onBudget: isBudgetActivityAccountType(template.type),
-    balance: '',
-    selected: template.selected === true,
-    existing: false,
-  }));
+  const setupAccounts = [
+    makeSetupAccount('accounts', { name: 'Betaalrekening', selected: true }),
+  ];
+  if (_ob.household.car) {
+    setupAccounts.push(makeSetupAccount('assets', { name: 'Auto', type: 'car', selected: true }));
+  }
+  return setupAccounts;
 }
 
-function renderSetupAccounts(body) {
-  renderSetupTitle(body, 'Rekeningen & bezittingen', 'Vul beginsaldi in voor wat je wilt meenemen. Lege nieuwe regels worden overgeslagen.');
+function setupAccountStepConfig(kind) {
+  if (kind === 'assets') {
+    return {
+      title: 'Wil je bezittingen meenemen?',
+      sub: 'Voeg alleen toe wat je wilt volgen in je financiële positie. Dit kan later ook.',
+      addLabel: '+ Bezitting toevoegen',
+      defaultType: 'investment',
+      types: SETUP_ACCOUNT_TYPE_OPTIONS.assets,
+    };
+  }
+  if (kind === 'debts') {
+    return {
+      title: 'Wil je schulden meenemen?',
+      sub: 'Voeg leningen of andere schulden toe als je ze wilt volgen. Vul bedragen positief in; Keeep rekent ze als schuld.',
+      addLabel: '+ Schuld toevoegen',
+      defaultType: 'other_debt',
+      types: SETUP_ACCOUNT_TYPE_OPTIONS.debts,
+    };
+  }
+  return {
+    title: 'Welke rekeningen gebruik je?',
+    sub: 'Voeg je betaalrekening, spaarrekening, contant geld of creditcard toe. Lege regels slaan we over.',
+    addLabel: '+ Rekening toevoegen',
+    defaultType: 'checking',
+    types: SETUP_ACCOUNT_TYPE_OPTIONS.accounts,
+  };
+}
+
+function setupAccountTypeBelongsToKind(type, kind) {
+  const normalized = normalizeAccountType(type || 'checking');
+  return setupAccountStepConfig(kind).types.some(option => option.value === normalized);
+}
+
+function getSetupAccountsForKind(kind) {
+  return _ob.accounts.filter(acc => setupAccountTypeBelongsToKind(acc.type, kind));
+}
+
+function makeSetupAccount(kind, overrides = {}) {
+  const config = setupAccountStepConfig(kind);
+  const type = overrides.type || config.defaultType;
+  return {
+    id: genId(),
+    name: overrides.name || '',
+    type,
+    onBudget: isBudgetActivityAccountType(type),
+    balance: overrides.balance || '',
+    selected: overrides.selected === true,
+    existing: false,
+  };
+}
+
+function syncSetupAccountDefaults() {
+  if (!_ob.household.car) {
+    _ob.accounts = _ob.accounts.filter(acc =>
+      acc.existing ||
+      normalizeAccountType(acc.type) !== 'car' ||
+      acc.name.trim() !== 'Auto' ||
+      parseBedrag(acc.balance || '') !== 0
+    );
+    return;
+  }
+  const hasAuto = _ob.accounts.some(acc => normalizeAccountType(acc.type) === 'car');
+  if (!hasAuto) {
+    _ob.accounts.push(makeSetupAccount('assets', { name: 'Auto', type: 'car', selected: true }));
+  }
+}
+
+function renderSetupAccountsStep(body, kind = 'accounts') {
+  const config = setupAccountStepConfig(kind);
+  renderSetupTitle(body, config.title, config.sub);
 
   const wrap = document.createElement('div');
   wrap.className = 'ob-account-list';
-  _ob.accounts.forEach(acc => wrap.appendChild(renderSetupAccountRow(acc)));
+  getSetupAccountsForKind(kind).forEach(acc => wrap.appendChild(renderSetupAccountRow(acc, config.types)));
   body.appendChild(wrap);
 
   const addBtn = document.createElement('button');
   addBtn.className = 'ob-add-row';
-  addBtn.textContent = '+ Rekening of bezitting toevoegen';
+  addBtn.textContent = config.addLabel;
   addBtn.onclick = () => {
-    _ob.accounts.push({ id: genId(), name: '', type: 'checking', onBudget: true, balance: '', selected: false, existing: false });
-    renderSetupAccounts(body);
+    _ob.accounts.push(makeSetupAccount(kind));
+    renderSetupAccountsStep(body, kind);
   };
   body.appendChild(addBtn);
 }
 
-function renderSetupAccountRow(acc) {
+function renderSetupAccountRow(acc, typeOptions = SETUP_ACCOUNT_TYPE_OPTIONS.accounts) {
   const row = document.createElement('div');
   row.className = 'ob-account-row';
   row.dataset.id = acc.id;
+  const typeOptionsHtml = typeOptions
+    .map(option => `<option value="${option.value}">${option.label}</option>`)
+    .join('');
   row.innerHTML = `
     <div class="ob-account-row-top">
       <label class="ob-account-field ob-account-name-field">
@@ -606,23 +724,7 @@ function renderSetupAccountRow(acc) {
       <label class="ob-account-field">
         <span>Type</span>
         <select class="ob-account-type">
-          <optgroup label="Altijd on budget">
-            <option value="checking">Betaalrekening</option>
-            <option value="cash">Cash</option>
-            <option value="credit">Creditcard</option>
-          </optgroup>
-          <optgroup label="Altijd off budget">
-            <option value="car">Auto</option>
-            <option value="investment">Beleggingen</option>
-            <option value="savings">Spaarrekening</option>
-            <option value="property">Woning</option>
-          </optgroup>
-          <optgroup label="Altijd schuld">
-            <option value="auto_loan">Autolening</option>
-            <option value="mortgage">Hypotheek</option>
-            <option value="student_loan">Studielening DUO</option>
-            <option value="other_debt">Andere schuld</option>
-          </optgroup>
+          ${typeOptionsHtml}
         </select>
       </label>
       <label class="ob-account-field">
@@ -655,7 +757,7 @@ function renderSetupAccountRow(acc) {
 // ── STAP: CATEGORIEËN ────────────────────────────────────────────────────
 
 function renderSetupCategories(body) {
-  renderSetupTitle(body, 'Welke potjes wil je gebruiken?', 'We zetten een rustige standaard klaar voor NL/BE. Pas aan wat niet bij jou past; later kun je altijd potjes toevoegen of verwijderen.');
+  renderSetupTitle(body, 'Welke potjes wil je gebruiken?', 'Kies de potjes waarmee je wilt starten. Je kunt later altijd potjes toevoegen, aanpassen of verwijderen.');
 
   const list = document.createElement('div');
   list.className = 'ob-category-groups';
@@ -693,8 +795,9 @@ function renderSetupCategories(body) {
 
   // Uitgavencategorieën per groep
   const activeCategories = getActiveCategories();
+  const subscriptionNames = new Set(SUBSCRIPTION_CATEGORIES.map(item => item.name));
   SETUP_GROUP_ORDER.forEach(groupName => {
-    const items = activeCategories.filter(item => item.group === groupName);
+    const items = sortSetupItems(activeCategories.filter(item => item.group === groupName && !subscriptionNames.has(item.name)));
     if (!items.length) return;
     const selectedCount = items.filter(item => _ob.selected[setupCategoryId(item)]).length;
     const allSelected = selectedCount === items.length;
@@ -816,11 +919,11 @@ function renderSetupReview(body) {
 // ── HELPER FUNCTIES ──────────────────────────────────────────────────────
 
 function getSelectedSetupItems() {
-  return getActiveCategories().filter(item => _ob.selected[setupCategoryId(item)]);
+  return sortSetupItems(getActiveCategories().filter(item => _ob.selected[setupCategoryId(item)]));
 }
 
 function getSelectedSetupIncomeItems() {
-  return SETUP_INCOME_CATEGORIES.filter(item => _ob.incomeSelected[item.name]);
+  return sortSetupItems(SETUP_INCOME_CATEGORIES.filter(item => _ob.incomeSelected[item.name]));
 }
 
 function getSetupAccountsToSave() {
@@ -833,8 +936,20 @@ function cleanCategoryName(name) {
   return name.replace(/^\P{L}+/u, '').trim();
 }
 
+function sortSetupItems(items) {
+  return [...items].sort((a, b) =>
+    cleanCategoryName(a.name).localeCompare(cleanCategoryName(b.name), 'nl', { sensitivity: 'base' })
+  );
+}
+
 function getSetupGroupName(groupName) {
   return (_ob.groupNames[groupName] || groupName).trim() || groupName;
+}
+
+function setupGroupAliases(groupName) {
+  if (groupName === 'Voor later') return ['Spaardoelen / vrije ruimte', 'Spaardoelen'];
+  if (groupName === 'Vrije ruimte') return ['Wants', 'Vrije tijd', 'Leuk & lekker', 'Nog te plaatsen'];
+  return [];
 }
 
 function findExistingSetupCategory(item) {
@@ -847,10 +962,17 @@ function findExistingSetupCategory(item) {
 function findExistingSetupGroup(groupName) {
   const direct = groups.find(g => g.name === groupName);
   if (direct) return direct;
+  const alias = setupGroupAliases(groupName).map(name => name.toLowerCase());
+  const aliasMatch = groups.find(g => alias.includes(String(g.name || '').toLowerCase()));
+  if (aliasMatch) return aliasMatch;
   const allCatNames = [...BASE_CATEGORIES, ...SUBSCRIPTION_CATEGORIES, ...Object.values(CATEGORY_PACKS).flat()]
     .filter(item => item.group === groupName)
     .map(item => item.name);
-  return groups.find(group => group.cats.some(cat => allCatNames.includes(cat.name))) || null;
+  return groups.find(group => {
+    const normalizedName = String(group.name || '').toLowerCase();
+    if (groupName === 'Vrije ruimte' && (normalizedName.includes('spaar') || normalizedName.includes('voor later'))) return false;
+    return group.cats.some(cat => allCatNames.includes(cat.name));
+  }) || null;
 }
 
 function findExistingIncomeCategory(name) {
@@ -960,7 +1082,8 @@ function buildAccountsFromSetup(setupAccounts) {
       if (!acc.name.trim()) return;
       const resolvedType = normalizeAccountType(acc.type || 'checking');
       const resolvedOnBudget = isBudgetActivityAccountType(resolvedType);
-      const cents = parseBedrag(acc.balance || '');
+      let cents = parseBedrag(acc.balance || '');
+      if (isLoanAccountType(resolvedType) && cents > 0) cents = -cents;
       nextAccounts.push({
         id: acc.id,
         name: acc.name.trim(),
@@ -989,9 +1112,10 @@ function buildAccountsFromSetup(setupAccounts) {
   const nextTransactions = [];
   setupAccounts.forEach(acc => {
     if (!acc.name.trim()) return;
-    const cents = parseBedrag(acc.balance || '');
     const resolvedType = normalizeAccountType(acc.type || 'checking');
     const resolvedOnBudget = isBudgetActivityAccountType(resolvedType);
+    let cents = parseBedrag(acc.balance || '');
+    if (isLoanAccountType(resolvedType) && cents > 0) cents = -cents;
     nextAccounts.push({
       id: acc.id,
       name: acc.name.trim(),

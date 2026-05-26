@@ -167,10 +167,17 @@ function openTxnModal(catId = null, grpId = null, txnOrId = null) {
   const catSel = document.getElementById('txn-cat');
   const isMobileEntry = document.body.classList.contains('mobile-entry') || window.innerWidth <= 768;
   catSel.innerHTML = `<option value="">${isMobileEntry ? '— Potje —' : '— Naar —'}</option>`;
+  if (formTxn && typeof isBalanceCorrectionTxn === 'function' && isBalanceCorrectionTxn(formTxn)) {
+    const opt = document.createElement('option');
+    opt.value = formTxn.catId || (typeof getBalanceCorrectionCatId === 'function' ? getBalanceCorrectionCatId() : '');
+    opt.textContent = 'Saldo correctie';
+    catSel.appendChild(opt);
+  }
   catSel.dataset.manualCategory = formTxn || catId ? 'true' : 'false';
   catSel.dataset.autoCategory = 'false';
   delete catSel.dataset.autoPayee;
   groups.forEach(grp => {
+    if (typeof isSystemBudgetGroup === 'function' && isSystemBudgetGroup(grp)) return;
     const optGrp = document.createElement('optgroup');
     optGrp.label = grp.name;
     grp.cats.forEach(cat => {
@@ -219,6 +226,11 @@ function openTxnModal(catId = null, grpId = null, txnOrId = null) {
 
   const deleteBtn = document.getElementById('btn-delete-txn');
   if (deleteBtn) deleteBtn.style.display = formTxn ? 'block' : 'none';
+
+  const isCorrection = formTxn && typeof isBalanceCorrectionTxn === 'function' && isBalanceCorrectionTxn(formTxn);
+  [document.getElementById('txn-payee'), document.getElementById('txn-cat')].forEach(el => {
+    if (el) el.disabled = !!isCorrection;
+  });
 
   openModal('modal-txn');
   if (!document.body.classList.contains('mobile-entry') && window.innerWidth > 768) {
@@ -372,11 +384,12 @@ function saveAcc() {
           id: genId(),
           date: vandaag(),
           accId: acc.id,
-          catId: null,
+          catId: typeof getBalanceCorrectionCatId === 'function' ? getBalanceCorrectionCatId() : null,
           payee: 'Saldocorrectie',
           memo: `Aanpassing van ${fmt(currentBal)} naar ${fmt(newBal)}`,
           amount: diff,
           cleared: true,
+          isBalanceCorrection: true,
           createdAt: new Date().toISOString()
         });
         S.set('transactions', transactions);
@@ -748,6 +761,7 @@ function rebuildCatFilters() {
   const current = sel.value;
   sel.innerHTML = '<option value="">Alle potjes</option>';
   groups.forEach(grp => {
+    if (typeof isSystemBudgetGroup === 'function' && isSystemBudgetGroup(grp)) return;
     const og = document.createElement('optgroup');
     og.label = grp.name;
     grp.cats.forEach(cat => {
@@ -886,6 +900,7 @@ function openGoalModal(catId) {
 
   goalUpdateCustomRepeat();
   goalUpdateCustomDate();
+  goalUpdateMonthlyHelper();
   goalSwitchTab(tab);
   closeCtxMenu();
   openModal('modal-goal');
@@ -904,6 +919,16 @@ function goalSwitchTab(tab) {
   if (lbl) lbl.textContent = tab === 'custom' ? 'Doelbedrag' : tab === 'manual' ? 'Bedrag' : 'Maandbedrag';
   const amountField = document.getElementById('goal-amount')?.closest('.goal-field');
   if (amountField) amountField.style.display = tab === 'manual' ? 'none' : 'flex';
+  if (tab === 'monthly') goalUpdateMonthlyHelper();
+}
+
+function goalUpdateMonthlyHelper() {
+  const mode = document.getElementById('goal-monthly-next')?.value || 'refill';
+  const helper = document.getElementById('goal-monthly-helper');
+  if (!helper) return;
+  helper.textContent = mode === 'set'
+    ? 'Keeep zet volgende maand opnieuw het volledige maandbedrag klaar voor dit potje, los van wat er nog over is.'
+    : 'Keeep vult dit potje volgende maand aan tot het maandbedrag. Staat er al geld in, dan hoef je alleen het verschil bij te leggen.';
 }
 
 function goalUpdateCustomRepeat() {
@@ -1268,9 +1293,9 @@ function showAccCtxMenu(e, accId) {
     menu.id = 'acc-ctx-menu';
     menu.className = 'ctx-menu';
     menu.innerHTML = `
-      <button onclick="accCtxEdit()">✏️ Bewerken</button>
-      <button onclick="accCtxAdjust()">💰 Saldo aanpassen</button>
-      <button onclick="accCtxDelete()" style="color:var(--red)">🗑 Verwijderen</button>`;
+      <button onclick="accCtxEdit()">Bewerken</button>
+      <button onclick="accCtxAdjust()">Saldo aanpassen</button>
+      <button onclick="accCtxDelete()" style="color:var(--red)">Verwijderen</button>`;
     document.body.appendChild(menu);
   }
 
@@ -1317,11 +1342,12 @@ async function accCtxAdjust() {
     id: genId(),
     date: vandaag(),
     accId: _ctxAccId,
-    catId: null,
+    catId: typeof getBalanceCorrectionCatId === 'function' ? getBalanceCorrectionCatId() : null,
     payee: 'Saldocorrectie',
     memo: `Aanpassing van ${fmt(currentBal)} naar ${fmt(newBal)}`,
     amount: diff,
     cleared: true,
+    isBalanceCorrection: true,
     createdAt: new Date().toISOString()
   });
 
@@ -1406,8 +1432,8 @@ function showGrpCtxMenu(e, grpId) {
     menu.id = 'grp-ctx-menu';
     menu.className = 'ctx-menu';
     menu.innerHTML = `
-      <button onclick="grpCtxRename()">✏️ Hernoemen</button>
-      <button onclick="grpCtxDelete()">🗑 Verwijderen</button>`;
+      <button onclick="grpCtxRename()">Hernoemen</button>
+      <button onclick="grpCtxDelete()">Verwijderen</button>`;
     document.body.appendChild(menu);
   }
 
@@ -1616,13 +1642,13 @@ function openSortMenu(e, grpId) {
     menu.id = 'sort-ctx-menu';
     menu.className = 'ctx-menu';
     menu.innerHTML = `
-      <button onclick="sortCats('alpha')">A → Z &nbsp;<span style="color:var(--text3);font-size:10px;">Alfabetisch</span></button>
-      <button onclick="sortCats('alpha-desc')">Z → A &nbsp;<span style="color:var(--text3);font-size:10px;">Omgekeerd</span></button>
-      <button onclick="sortCats('budget-desc')">↓ Hoogste budget</button>
-      <button onclick="sortCats('budget-asc')">↑ Laagste budget</button>
-      <button onclick="sortCats('spent-desc')">↓ Meeste activiteit</button>
-      <button onclick="sortCats('available-desc')">↓ Meest beschikbaar</button>
-      <button onclick="sortCats('available-asc')">↑ Minst beschikbaar</button>`;
+      <button onclick="sortCats('alpha')">Alfabetisch</button>
+      <button onclick="sortCats('alpha-desc')">Omgekeerd alfabetisch</button>
+      <button onclick="sortCats('budget-desc')">Hoogste budget</button>
+      <button onclick="sortCats('budget-asc')">Laagste budget</button>
+      <button onclick="sortCats('spent-desc')">Meeste activiteit</button>
+      <button onclick="sortCats('available-desc')">Meest beschikbaar</button>
+      <button onclick="sortCats('available-asc')">Minst beschikbaar</button>`;
     document.body.appendChild(menu);
     document.addEventListener('click', () => menu.classList.remove('visible'));
   }

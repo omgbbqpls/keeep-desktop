@@ -65,6 +65,7 @@ const S = {
 let appTheme    = S.get('theme', 'dark');
 let appLang     = S.get('lang', 'nl');
 let appCurrency = S.get('currency', { symbol: '€', code: 'EUR' });
+let autoBackupFolder = S.get('autoBackupFolder', '');
 
 // ── BUDGET DATA ───────────────────────────────────────────────────────────
 let accounts     = S.get('accounts', []);
