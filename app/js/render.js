@@ -402,7 +402,7 @@ function renderBudget() {
 
     let grpBudgeted = 0, grpSpent = 0, grpAvail = 0;
     grp.cats.forEach(cat => {
-      grpBudgeted += calcCatAssignedDisplay(cat.id);
+      grpBudgeted += calcCatBudgeted(cat.id);
       grpSpent    += calcCatSpent(cat.id);
       grpAvail    += calcCatAvailable(cat.id);
     });
@@ -451,7 +451,6 @@ function renderBudget() {
     grp.cats.forEach(cat => {
       const income    = isIncomeCat(cat.id);
       const budgeted  = calcCatBudgeted(cat.id);
-      const assignedDisplay = calcCatAssignedDisplay(cat.id);
       const spent     = calcCatSpent(cat.id);
       const available = calcCatAvailable(cat.id);
       const fundingStatus = calcFundingRuleStatus(cat.id);
@@ -508,7 +507,7 @@ function renderBudget() {
         : `<div class="cat-spent">${fmt(Math.abs(spent))}</div>`;
       const budgetHtml = income
         ? `<div class="cat-budgeted"></div>`
-        : `<div class="cat-budgeted"><input class="budget-input ${assignedDisplay === 0 ? 'budget-input-zero' : ''}" value="${fmtInput(assignedDisplay)}" onchange="setBudgetIncludingRollover('${cat.id}', this.value)" onfocus="this.select()"></div>`;
+        : `<div class="cat-budgeted"><input class="budget-input ${budgeted === 0 ? 'budget-input-zero' : ''}" value="${fmtInput(budgeted)}" onchange="setBudget('${cat.id}', this.value)" onfocus="this.select()"></div>`;
 
       const visual = getCategoryVisual(cat);
       const catIcon = visual.iconHtml;
@@ -1591,16 +1590,6 @@ function calcCatBudgeted(catId) {
   return Math.round((bm[catId] ?? 0) * 100);
 }
 
-function calcCatRollover(catId) {
-  if (isIncomeCat(catId)) return 0;
-  return getPrevAvailable(catId);
-}
-
-function calcCatAssignedDisplay(catId) {
-  if (isIncomeCat(catId)) return 0;
-  return calcCatRollover(catId) + calcCatBudgeted(catId);
-}
-
 function isIncomeCat(catId) {
   const grp = groups.find(g => g.name === 'Inkomen');
   return !!grp?.cats.find(c => c.id === catId);
@@ -2347,6 +2336,7 @@ function calcFundingRuleStatus(catId) {
     coverage = Math.max(0, available) + spentAbs;
     title = 'Maandbedrag';
     headline = `${fmt(monthlyNeed)} per maand`;
+    subline = '';
     actionLabel = 'Maandbedrag aanpassen';
   } else if (rule.type === 'targetByDate') {
     const monthsLeft = monthsUntil(rule.targetDate);
@@ -2517,25 +2507,30 @@ function buildCatMeta({ cat, income, goal, goalTarget, budgeted, spent, availabl
   // Status-chip naast categorienaam
   let statusText = '';
   let statusKey  = 'idle';
-  let statusLeadingIcon = false;
   if (available < 0) {
     statusKey  = 'over';
     statusText = `${fmt(Math.abs(available))} tekort`;
-    statusLeadingIcon = true;
-  } else if (!status.isManual && need > 0) {
+  } else if (goal && status.rule.type === 'monthly') {
+    if (status.fillNeed > 0) {
+      statusKey = 'need';
+      statusText = `${fmt(status.fillNeed)} nodig`;
+    } else if (status.isFunded) {
+      statusKey = 'funded';
+      statusText = 'icon';
+    }
+  } else if (goal && !status.isManual) {
     if (status.rule.type === 'targetByDate' && status.targetReached) {
-      statusKey = 'idle';
-      statusText = '';
+      statusKey = 'funded';
+      statusText = 'icon';
     } else if (needLeft > 0) {
       statusKey = isUrgent ? 'need' : 'eventually';
-      statusText = `Nog ${fmt(needLeft)} nodig`;
-      statusLeadingIcon = true;
+      statusText = `${fmt(needLeft)} nodig`;
     } else if (status.isUsedUp) {
       statusKey = 'idle';
       statusText = '';
-    } else if (spentAbs > 0) {
-      statusKey = 'idle';
-      statusText = '';
+    } else if (status.isFunded) {
+      statusKey = 'funded';
+      statusText = 'icon';
     } else {
       statusKey = 'idle';
       statusText = '';
@@ -2547,12 +2542,12 @@ function buildCatMeta({ cat, income, goal, goalTarget, budgeted, spent, availabl
     statusKey  = 'idle';
     statusText = '';
   }
-  const checkIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8"><circle cx="12" cy="12" r="9"/><path d="m8.5 12.3 2.2 2.2 4.8-5"/></svg>';
-  const alertIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8"><circle cx="12" cy="12" r="9"/><line x1="12" y1="7" x2="12" y2="13"/><circle cx="12" cy="16.5" r=".8" fill="currentColor" stroke="none"/></svg>';
-  const infoIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8"><circle cx="12" cy="12" r="9"/><line x1="12" y1="10" x2="12" y2="15.5"/><circle cx="12" cy="7.5" r=".8" fill="currentColor" stroke="none"/></svg>';
+  const checkIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m6 12 4 4 8-8"/></svg>';
+  const alertIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
+  const infoIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 10v7"/><path d="M12 7h.01"/></svg>';
   const leadingIcon = statusKey === 'over' ? alertIcon : statusKey === 'need' || statusKey === 'eventually' ? infoIcon : checkIcon;
   const statusHtml = statusText
-    ? `<span class="cat-status-chip cat-status-chip-${statusKey}">${statusLeadingIcon ? `<span class="cat-status-chip-mark">${leadingIcon}</span>` : ''}${escapeHtml(statusText)}</span>`
+    ? `<span class="cat-status-chip cat-status-chip-${statusKey}${statusText === 'icon' ? ' cat-status-chip-icon-only' : ''}"><span class="cat-status-chip-mark">${leadingIcon}</span>${statusText === 'icon' ? '' : escapeHtml(statusText)}</span>`
     : '';
 
   // Beschikbaar pill
@@ -2689,16 +2684,6 @@ function accTypeLabel(type) {
 // ── BUDGET INPUT ──────────────────────────────────────────────────────────
 async function setBudget(catId, rawVal) {
   const cents = parseBedrag(rawVal);
-  await setBudgetCents(catId, cents);
-}
-
-async function setBudgetIncludingRollover(catId, rawVal) {
-  const displayCents = parseBedrag(rawVal);
-  const rollover = calcCatRollover(catId);
-  await setBudgetCents(catId, displayCents - rollover);
-}
-
-async function setBudgetCents(catId, cents) {
   const bm    = getBudgetMonth(currentYear, currentMonth);
   const current = Math.round((bm[catId] || 0) * 100);
   const reduction = Math.max(0, current - cents);
@@ -2820,6 +2805,40 @@ function fillAllGoals(groupId = null) {
   } else {
     toast(group ? `${scopeLabel} gevuld met ${fmt(totalAdded)}.` : `Alle potjes gevuld met ${fmt(totalAdded)}.`);
   }
+}
+
+async function emptyBudgetPots() {
+  const bm = getBudgetMonth(currentYear, currentMonth);
+  const entries = Object.entries(bm)
+    .map(([catId, value]) => ({ catId, cents: Math.round((Number(value) || 0) * 100) }))
+    .filter(({ catId, cents }) =>
+      cents > 0 &&
+      !isIncomeCat(catId) &&
+      !(typeof isProtectedBudgetCat === 'function' && isProtectedBudgetCat(catId))
+    );
+
+  if (!entries.length) {
+    toast('Er zijn geen toegewezen bedragen om leeg te maken.');
+    return;
+  }
+
+  const total = entries.reduce((sum, item) => sum + item.cents, 0);
+  const ok = await kConfirm(
+    `Dit zet <strong>${fmt(total)}</strong> aan toegewezen bedragen terug naar "Nog toe te wijzen". Uitgaven en transacties blijven staan.`,
+    'Potjes leegmaken?',
+    false,
+    'Potjes leegmaken'
+  );
+  if (!ok) return;
+
+  pushUndo();
+  entries.forEach(({ catId }) => {
+    bm[catId] = 0;
+  });
+  budgets[monthKey(currentYear, currentMonth)] = bm;
+  S.set('budgets', budgets);
+  refreshBudgetSurfaces();
+  toast(`${fmt(total)} teruggezet naar nog toe te wijzen.`);
 }
 
 // ── Nog toe te wijzen ─────────────────────────────────────────────────────
@@ -4384,19 +4403,50 @@ function buildMonthlyPaymentNote(catId, cat, available) {
   );
   const paidTotal = paidTxns.reduce((sum, t) => sum + Math.abs(Number(t.amount || 0)), 0);
 
-  if (paidTxns.length === 1) {
-    const tx = paidTxns[0];
-    const fallbackName = cat?.name ? cat.name.replace(/^\S+\s*/, '').trim() : 'dit potje';
-    const label = (tx.payee || tx.description || tx.memo || fallbackName || 'dit potje').trim();
-    return `Je hebt ${label} deze maand ${fmt(paidTotal)} uitgegeven`;
-  }
-  if (paidTxns.length > 1) {
-    return `Je hebt deze maand ${fmt(paidTotal)} uitgegeven met ${paidTxns.length} transacties`;
+  if (paidTxns.length > 0) {
+    return paidTotal > 0
+      ? `Deze maand is ${fmt(paidTotal)} betaald.`
+      : 'Deze maand is betaald.';
   }
   if (available === 0) {
     return 'Dit potje is leeg';
   }
   return '';
+}
+
+function buildMonthlyAvailableCopy(available, monthlyAmount, paidThisMonth = 0) {
+  if (monthlyAmount <= 0 || available <= 0) {
+    return { badge: '', note: '' };
+  }
+  const fullMonths = Math.floor(available / monthlyAmount);
+  const remainder = available - fullMonths * monthlyAmount;
+  const currentMonthPaid = paidThisMonth >= monthlyAmount;
+  const monthsWord = fullMonths === 1 ? 'maand' : 'maanden';
+  const readyVerb = fullMonths === 1 ? 'staat' : 'staan';
+  const paidPrefix = currentMonthPaid ? 'Deze maand is betaald. ' : '';
+  if (fullMonths >= 1 && remainder === 0) {
+    const label = `${fullMonths} ${monthsWord} beschikbaar`;
+    const note = currentMonthPaid
+      ? `${paidPrefix}Er ${readyVerb} nog ${fullMonths === 1 ? '1 maand' : `${fullMonths} maanden`} klaar.`
+      : fullMonths === 1
+      ? 'Er staat genoeg klaar voor deze maand.'
+      : `Er staat genoeg klaar voor ${fullMonths} maanden.`;
+    return { badge: label, note };
+  }
+  if (fullMonths >= 1) {
+    return {
+      badge: `${fullMonths} ${monthsWord} + ${fmt(remainder)} beschikbaar`,
+      note: currentMonthPaid
+        ? `${paidPrefix}Er ${readyVerb} nog ${fullMonths === 1 ? '1 maand' : `${fullMonths} maanden`} klaar, plus ${fmt(remainder)} extra.`
+        : `Er staat genoeg klaar voor ${fullMonths === 1 ? 'deze maand' : `${fullMonths} maanden`}, plus ${fmt(remainder)} extra.`
+    };
+  }
+  return {
+    badge: `${fmt(available)} beschikbaar`,
+    note: currentMonthPaid
+      ? `${paidPrefix}Daarnaast staat er ${fmt(available)} klaar.`
+      : `Er staat ${fmt(available)} klaar voor dit potje.`
+  };
 }
 
 function refreshCatDetail() {
@@ -4496,23 +4546,28 @@ function refreshCatDetail() {
     const isMonthlyRule = fundingStatus.rule.type === 'monthly';
     const showMonthlyStatus = isMonthlyRule && available >= 0 && !isPanelOverspent;
     const monthlySurplus = isMonthlyRule && reached ? fundingStatus.surplus : 0;
+    const monthlyAvailableCopy = isMonthlyRule
+      ? buildMonthlyAvailableCopy(Math.max(0, available), fundingStatus.monthlyNeed, spentAbs)
+      : { badge: '', note: '' };
     const targetReached = isTargetRule && fundingStatus.targetReached;
     const targetOver = targetReached ? fundingStatus.targetOver : 0;
+    const isNeeded = ((isMonthlyRule && !reached) || (isTargetRule && !targetReached && togo > 0)) && !fundingStatus.isUsedUp && available >= 0;
+    const isShortage = isPanelOverspent;
 
     // Budgetstatus
     if (reachedEl) reachedEl.style.display = isPanelOverspent || targetReached || ((reached || fundingStatus.isUsedUp) && available >= 0) || showMonthlyStatus ? 'flex' : 'none';
     const reachedBadge = document.getElementById('cdp-goal-reached-badge');
     if (reachedBadge) {
-      const isNeeded = ((isMonthlyRule && !reached) || (isTargetRule && !targetReached && togo > 0)) && !fundingStatus.isUsedUp && available >= 0;
-      const isShortage = isPanelOverspent;
       reachedBadge.textContent = isShortage
         ? `${fmt(Math.abs(available))} tekort`
+        : isMonthlyRule && isNeeded
+        ? `${fmt(togo)} nodig`
+        : isMonthlyRule && monthlyAvailableCopy.badge
+        ? monthlyAvailableCopy.badge
         : targetOver > 0
         ? `${fmt(targetOver)} boven doel`
         : targetReached
         ? 'Doel behaald'
-        : monthlySurplus > 0
-        ? `${fmt(monthlySurplus)} over`
         : fundingStatus.isUsedUp
         ? 'Uitgegeven'
         : isNeeded
@@ -4539,8 +4594,8 @@ function refreshCatDetail() {
     if (noteEl) {
       const statusNoteText = isTargetRule && targetReached
         ? targetOver > 0
-          ? `Je doel is behaald. Er staat ${fmt(targetOver)} meer in dit potje dan nodig voor dit doel`
-          : `Je doel is behaald`
+          ? `Je hebt je doel van ${fmt(fundingStatus.targetAmount)} gehaald. Je hebt op dit moment ${fmt(targetOver)} meer in het potje dan je oorspronkelijk gepland had.`
+          : `Je doel is gehaald. Dit potje staat precies op doel.`
         : isTargetRule && !targetReached && togo === 0
         ? targetHasDate
           ? `Je hebt genoeg toegewezen om op schema te blijven voor dit doel`
@@ -4549,14 +4604,14 @@ function refreshCatDetail() {
         ? ''
         : isPanelOverspent
         ? `Er is meer uitgegeven dan beschikbaar was`
-        : monthlySurplus > 0
-        ? spentAbs >= need
-          ? `Je maandbedrag is uitgegeven en ${fmt(monthlySurplus)} blijft extra beschikbaar`
-          : `Er staat genoeg in dit potje voor het maandbedrag en ${fmt(monthlySurplus)} blijft extra beschikbaar`
-        : reached || fundingStatus.isUsedUp
-        ? spentAbs > 0
-          ? ''
-          : paidNote || `Voor mei is dit potje volledig gevuld.`
+        : isMonthlyRule && isNeeded
+        ? `Wijs nog ${fmt(togo)} toe om dit potje te vullen.`
+        : isMonthlyRule && monthlyAvailableCopy.note
+        ? monthlyAvailableCopy.note
+        : isMonthlyRule && fundingStatus.isUsedUp
+        ? paidNote || 'Deze maand is betaald.'
+        : fundingStatus.isUsedUp
+        ? ''
         : `Wijs nog ${fmt(togo)} toe om dit potje te vullen.`;
       noteEl.style.display = (useCompactMonthly || isTargetRule) && statusNoteText ? 'block' : 'none';
       noteEl.textContent = statusNoteText;

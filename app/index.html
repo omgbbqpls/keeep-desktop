@@ -6,7 +6,7 @@
   <title>Keeep — Budget like you mean it</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="css/keeep.css?v=155">
+  <link rel="stylesheet" href="css/keeep.css?v=160">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0d0f14">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -196,6 +196,10 @@
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 3v18"/><path d="M5 10l7-7 7 7"/><path d="M5 21h14"/></svg>
           Potjes vullen
         </button>
+        <button class="bab-btn bab-fill" onclick="emptyBudgetPots()" title="Maak toegewezen bedragen voor deze maand leeg">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 21V3"/><path d="M5 14l7 7 7-7"/><path d="M5 3h14"/></svg>
+          Potjes leegmaken
+        </button>
         <div class="bab-divider"></div>
         <button class="bab-btn" id="btn-undo" data-undo-btn onclick="undoLastAction()" disabled title="Ongedaan maken">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v6h6"/><path d="M3 13C5 8 9.5 5 15 5a9 9 0 0 1 0 18c-4 0-7.5-2-9-5"/></svg>
@@ -226,7 +230,7 @@
             <div id="th-cat"><button class="budget-master-toggle" type="button" onclick="toggleAllGroups()" title="Alles open/dicht"><span id="budget-master-chevron">▼</span><span>Potje</span></button></div>
             <div id="th-available">Toegewezen</div>
             <div id="th-activity">Uitgegeven</div>
-            <div id="th-assigned">Over</div>
+            <div id="th-assigned">Beschikbaar</div>
           </div>
           <div id="budget-body"></div>
         </div>
@@ -895,8 +899,8 @@
 <script src="js/dialog.js?v=14"></script>
 <script src="js/state.js?v=36"></script>
 <script src="js/format.js?v=12"></script>
-<script src="js/render.js?v=185"></script>
-<script src="js/modals.js?v=80"></script>
+<script src="js/render.js?v=194"></script>
+<script src="js/modals.js?v=83"></script>
 <script src="js/onboarding.js?v=13"></script>
 <script src="js/app.js?v=70"></script>
 <script>

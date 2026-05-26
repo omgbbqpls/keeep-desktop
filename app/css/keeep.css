@@ -682,6 +682,7 @@ html.light .budget-master-toggle:hover{color:#111827;}
 .group-name{font-size:10.5px;font-weight:800;color:var(--text2);text-transform:uppercase;letter-spacing:.10em;min-width:0;}
 .group-totals{display:contents;font-family:var(--font-num);font-size:11.5px;font-weight:600;}
 .group-totals span{text-align:right;padding-right:14px;font-family:var(--font-num);color:var(--text);}
+.group-totals .grp-total-budgeted,
 .group-totals .grp-total-spent{color:var(--text2);font-weight:400;}
 .group-totals .grp-total-avail{display:flex;justify-content:flex-end;align-items:center;padding-right:12px;}
 .grp-avail-val{font-family:var(--font-num);font-size:12px;font-weight:600;color:var(--text2);}
@@ -739,6 +740,7 @@ html.light .budget-master-toggle:hover{color:#111827;}
   font-variant-numeric:tabular-nums;
   font-feature-settings:"tnum" 1;
 }
+.cat-budgeted,.cat-spent{font-weight:400;}
 .cat-spent{color:color-mix(in srgb,var(--text2) 86%,var(--text) 14%);}
 .cat-budgeted-protected{
   color:var(--text2);font-family:var(--font-num);font-size:12.5px;font-weight:600;
@@ -749,9 +751,9 @@ html.light .budget-master-toggle:hover{color:#111827;}
 
 /* Statuschip naast categorienaam */
 .cat-status-chip{
-  display:inline-flex;align-items:center;gap:3px;
-  min-height:17px;padding:2px 8px;border-radius:999px;
-  font-size:9.5px;font-weight:750;line-height:1;
+  display:inline-flex;align-items:center;gap:4px;
+  min-height:17px;padding:1px 7px 1px 5px;border-radius:999px;
+  font-size:8.8px;font-weight:780;line-height:1;
   white-space:nowrap;flex-shrink:1;font-family:var(--font-body);
   min-width:0;overflow:hidden;text-overflow:ellipsis;
 }
@@ -762,7 +764,7 @@ html.light .budget-master-toggle:hover{color:#111827;}
 .cat-status-chip-icon svg{width:16px;height:16px;}
 .cat-row:hover .cat-status-chip-icon,
 .cat-row.cdp-selected .cat-status-chip-icon{opacity:.8;}
-.cat-status-chip-funded{background:transparent;color:color-mix(in srgb,var(--green) 48%,var(--text3));opacity:.62;}
+.cat-status-chip-funded{background:rgba(29,201,154,.09);color:var(--green);}
 .cat-status-chip-idle{background:rgba(255,255,255,.045);color:var(--text3);opacity:.82;font-weight:700;}
 .cat-status-chip-low{background:rgba(245,166,35,.14);color:var(--amber);}
 .cat-status-chip-spent{background:transparent;color:color-mix(in srgb,var(--green) 42%,var(--text3));opacity:.6;}
@@ -772,11 +774,20 @@ html.light .budget-master-toggle:hover{color:#111827;}
   gap:5px;padding-left:6px;font-weight:760;
 }
 .cat-status-chip-mark{
-  width:13px;height:13px;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;
+  width:11px;height:11px;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;
 }
-.cat-status-chip-mark svg{width:13px;height:13px;}
-.cat-status-chip-need,.cat-status-chip-eventually{background:rgba(245,166,35,.13);color:var(--amber);}
-.cat-status-chip-over{background:rgba(240,79,106,.15);color:var(--red);}
+.cat-status-chip-mark svg{width:10.5px;height:10.5px;}
+.cat-status-chip-icon-only{
+  width:18px;height:18px;min-height:18px;padding:0;justify-content:center;gap:0;
+  background:transparent;color:color-mix(in srgb,var(--green) 82%,var(--text2));
+  opacity:.78;
+}
+.cat-status-chip-icon-only .cat-status-chip-mark{width:14px;height:14px;}
+.cat-status-chip-icon-only .cat-status-chip-mark svg{width:13px;height:13px;}
+.cat-row:hover .cat-status-chip-icon-only,
+.cat-row.cdp-selected .cat-status-chip-icon-only{opacity:1;background:rgba(29,201,154,.075);}
+.cat-status-chip-need,.cat-status-chip-eventually{background:rgba(245,166,35,.10);color:color-mix(in srgb,var(--amber) 92%,var(--text) 8%);}
+.cat-status-chip-over{background:rgba(240,79,106,.12);color:color-mix(in srgb,var(--red) 92%,var(--text) 8%);}
 .cat-status-chip-reserved{background:rgba(99,179,237,.13);color:#63b3ed;}
 .cat-status-chip.cat-status-chip-icon{opacity:.55;}
 .cat-row:hover .cat-status-chip.cat-status-chip-icon,

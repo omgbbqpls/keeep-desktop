@@ -545,18 +545,22 @@ function openMoveModal(fromCatId = null, startMode = null, options = {}) {
   const toSel   = document.getElementById('move-to');
   [fromSel, toSel].forEach((sel, idx) => {
     sel.innerHTML = '<option value="">— Potje —</option>';
-    if (idx === 0) {
+    if (idx === 0 || idx === 1) {
       const rtaOpt = document.createElement('option');
       rtaOpt.value = MOVE_SOURCE_RTA;
-      rtaOpt.textContent = `Nog toe te wijzen · ${fmt(calcReadyToAssign())}`;
+      rtaOpt.textContent = idx === 0
+        ? `Nog toe te wijzen · ${fmt(calcReadyToAssign())}`
+        : 'Nog toe te wijzen';
       sel.appendChild(rtaOpt);
     }
     groups.forEach(grp => {
-      if (idx === 0 && isProtectedMoveSourceGroup(grp.name)) return;
+      const containsInitialSource = fromCatId && grp.cats.some(cat => cat.id === fromCatId);
+      if (idx === 0 && isProtectedMoveSourceGroup(grp.name) && !containsInitialSource) return;
       const og = document.createElement('optgroup');
       og.label = grp.name;
       grp.cats.forEach(cat => {
-        if (idx === 0 && typeof isProtectedBudgetCat === 'function' && isProtectedBudgetCat(cat.id)) return;
+        if (idx === 0 && isProtectedMoveSourceGroup(grp.name) && cat.id !== fromCatId) return;
+        if (idx === 0 && typeof isProtectedBudgetCat === 'function' && isProtectedBudgetCat(cat.id) && cat.id !== fromCatId) return;
         const opt = document.createElement('option');
         opt.value = cat.id;
         opt.textContent = idx === 0
@@ -688,6 +692,7 @@ async function confirmTakingFromTargetGoal(catId, cents, confirmLabel = 'Toch ve
   const current = Math.max(0, status.targetProgress || calcCatAvailable(catId));
   const target = status.targetAmount || 0;
   const after = Math.max(0, current - cents);
+  if (after >= target) return true;
   const name = escapeHtml(cleanBudgetLabel(cat?.name || 'dit potje'));
 
   return kConfirm(
@@ -709,7 +714,11 @@ async function doMove() {
   const toId   = document.getElementById('move-to').value;
   if (!fromId || !toId) { toast('Kies een bron en een budget.'); return void 0; return; }
   if (fromId === toId)  { toast('Van en naar zijn hetzelfde.'); return void 0; return; }
-  if (isProtectedMoveSourceCat(fromId)) {
+  if (fromId === MOVE_SOURCE_RTA && toId === MOVE_SOURCE_RTA) {
+    toast('Kies een potje om geld naartoe te verplaatsen.');
+    return void 0; return;
+  }
+  if (toId !== MOVE_SOURCE_RTA && isProtectedMoveSourceCat(fromId)) {
     toast('Vaste lasten zijn beschermd en kunnen niet als bron worden gebruikt.');
     return void 0; return;
   }
@@ -725,7 +734,9 @@ async function doMove() {
   if (fromId !== MOVE_SOURCE_RTA) {
     bm[fromId] = ((bm[fromId] ?? 0) * 100 - cents) / 100;
   }
-  bm[toId]   = ((bm[toId]   ?? 0) * 100 + cents) / 100;
+  if (toId !== MOVE_SOURCE_RTA) {
+    bm[toId] = ((bm[toId] ?? 0) * 100 + cents) / 100;
+  }
   budgets[key] = bm;
   S.set('budgets', budgets);
   closeModal('modal-move');
@@ -735,7 +746,9 @@ async function doMove() {
     render();
     if (typeof refreshCatDetail === 'function' && _cdpCatId) refreshCatDetail();
   }
-  toast(fromId === MOVE_SOURCE_RTA
+  toast(toId === MOVE_SOURCE_RTA
+    ? `${fmt(cents)} teruggezet naar nog toe te wijzen.`
+    : fromId === MOVE_SOURCE_RTA
     ? `${fmt(cents)} toegewezen.`
     : `${fmt(cents)} verplaatst tussen potjes.`);
 }
@@ -928,7 +941,7 @@ function goalUpdateMonthlyHelper() {
   if (!helper) return;
   helper.textContent = mode === 'set'
     ? 'Keeep zet volgende maand opnieuw het volledige maandbedrag klaar voor dit potje, los van wat er nog over is.'
-    : 'Keeep vult dit potje volgende maand aan tot het maandbedrag. Staat er al geld in, dan hoef je alleen het verschil bij te leggen.';
+    : 'Keeep vult dit potje aan tot het maandbedrag. Staat er al geld in, dan hoef je alleen het verschil bij te leggen.';
 }
 
 function goalUpdateCustomRepeat() {
