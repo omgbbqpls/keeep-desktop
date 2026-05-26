@@ -1082,7 +1082,7 @@ function closeSidebar() {
 }
 
 // ── PRIVATE BETA ACTIVATIE ────────────────────────────────────────────────
-const BETA_ACTIVATION_KEY = 'keeep_beta_activated_v1';
+const BETA_ACTIVATION_KEY = 'keeep_beta_activated_2026_05_26_v2';
 const BETA_ACTIVATION_HASHES = [
   '2810309d295fe4b8514686deefcbdc144af790f2a4dd8b4095869099fdf76a0d',
   '8a3159f41a626dc1e651467ad1543eb9dfabc36e40d4a6c3314efed7f4030ada',
