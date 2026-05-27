@@ -490,6 +490,7 @@ async function addCategory(grpId) {
 // ── GELD VERPLAATSEN MODAL ────────────────────────────────────────────────
 let _moveMode = 'cat'; // 'cat' of 'acc'
 let _movePurpose = 'move';
+let _moveRequestedAmount = 0;
 const MOVE_SOURCE_RTA = '__ready_to_assign__';
 
 function isProtectedMoveSourceGroup(groupName) {
@@ -516,16 +517,27 @@ function setMoveMode(mode) {
 
 function setMovePurpose(purpose = 'move', details = {}) {
   _movePurpose = purpose;
+  _moveRequestedAmount = purpose === 'shortage' ? (details.amount || 0) : 0;
   const titleEl = document.getElementById('modal-move-title');
   const contextEl = document.getElementById('move-context-text');
   const submitBtn = document.getElementById('move-submit-btn');
   if (purpose === 'shortage') {
     const catName = details.catName || 'dit potje';
     const amount = details.amount || 0;
+    const rta = typeof calcReadyToAssign === 'function' ? calcReadyToAssign() : 0;
     if (titleEl) titleEl.textContent = 'Budget in balans brengen';
     if (contextEl) {
       contextEl.style.display = 'block';
-      contextEl.innerHTML = `Er is <strong>${fmt(amount)}</strong> nodig in ${escapeHtml(catName)}. Kies uit welk potje je geld wilt verplaatsen.`;
+      const escapedName = escapeHtml(catName);
+      const hasSpecificName = catName && catName !== 'dit potje';
+      const intro = hasSpecificName
+        ? `${escapedName} komt <strong>${fmt(amount)}</strong> tekort.`
+        : `Er is <strong>${fmt(amount)}</strong> nodig om dit potje weer in balans te brengen.`;
+      contextEl.innerHTML = rta >= amount && amount > 0
+        ? `${intro} Je kunt dit aanvullen met geld dat nog geen taak heeft.`
+        : rta > 0 && amount > 0
+        ? `${intro} Je kunt dit aanvullen met geld dat nog geen taak heeft, of bewust uit een ander potje halen.`
+        : `${intro} Kies uit welk potje je dit wilt aanvullen.`;
     }
     if (submitBtn) submitBtn.textContent = `Verplaats ${fmt(amount)}`;
   } else {
@@ -536,6 +548,14 @@ function setMovePurpose(purpose = 'move', details = {}) {
     }
     if (submitBtn) submitBtn.textContent = 'Verplaatsen';
   }
+}
+
+function setMoveAmountFromSource(sourceAvailable) {
+  const amountEl = document.getElementById('move-amount');
+  if (!amountEl || _movePurpose !== 'shortage') return;
+  const maxNeeded = _moveRequestedAmount || parseBedrag(amountEl.value || '');
+  const nextAmount = maxNeeded > 0 ? Math.min(sourceAvailable, maxNeeded) : sourceAvailable;
+  if (nextAmount > 0) amountEl.value = fmtInput(nextAmount);
 }
 
 function openMoveModal(fromCatId = null, startMode = null, options = {}) {
@@ -589,10 +609,15 @@ function renderMoveFundingOptions() {
   if (_moveMode !== 'cat') return;
 
   const amount = parseBedrag(document.getElementById('move-amount')?.value || '') || 0;
+  const requestedAmount = _movePurpose === 'shortage' && _moveRequestedAmount > 0
+    ? _moveRequestedAmount
+    : amount;
   const toId = document.getElementById('move-to')?.value || '';
   const fromId = document.getElementById('move-from')?.value || '';
   const neededEl = document.getElementById('move-source-needed');
-  if (neededEl) neededEl.textContent = amount > 0 ? `Nodig: ${fmt(amount)}` : '';
+  if (neededEl) neededEl.textContent = requestedAmount > 0 ? `Nodig: ${fmt(requestedAmount)}` : '';
+  const headLabel = panel.querySelector('.move-source-head span:first-child');
+  if (headLabel) headLabel.textContent = 'Waar wil je het vandaan halen?';
   const submitBtn = document.getElementById('move-submit-btn');
   if (submitBtn && _movePurpose === 'shortage') submitBtn.textContent = amount > 0 ? `Verplaats ${fmt(amount)}` : 'Bedrag verplaatsen';
 
@@ -601,30 +626,43 @@ function renderMoveFundingOptions() {
 
   const rta = calcReadyToAssign();
   if (rta > 0) {
-    const canFullyCover = amount > 0 && rta >= amount;
-    const canPartlyCover = amount > 0 && !canFullyCover;
+    const rtaGroupEl = document.createElement('div');
+    rtaGroupEl.className = 'move-source-group move-source-rta-group';
+    rtaGroupEl.textContent = 'Geld zonder taak';
+    list.appendChild(rtaGroupEl);
+
+    const canFullyCover = requestedAmount > 0 && rta >= requestedAmount;
+    const canPartlyCover = requestedAmount > 0 && !canFullyCover;
     const button = document.createElement('button');
     button.type = 'button';
     button.className =
-      `move-source-item move-source-rta move-source-${amount > 0 ? (canFullyCover ? 'safe' : canPartlyCover ? 'partial' : 'none') : 'safe'}` +
+      `move-source-item move-source-rta move-source-${requestedAmount > 0 ? (canFullyCover ? 'safe' : canPartlyCover ? 'partial' : 'none') : 'safe'}` +
       (fromId === MOVE_SOURCE_RTA ? ' is-selected' : '');
 
+    const nameWrap = document.createElement('span');
+    nameWrap.className = 'move-source-name-wrap';
     const nameEl = document.createElement('span');
     nameEl.className = 'move-source-name';
     nameEl.textContent = 'Nog toe te wijzen';
+    const hintEl = document.createElement('span');
+    hintEl.className = 'move-source-hint';
+    hintEl.textContent = 'Dit geld kun je nog een taak geven';
+    nameWrap.append(nameEl, hintEl);
     const amountEl = document.createElement('span');
     amountEl.className = 'move-source-amount';
     amountEl.textContent = fmt(rta);
-    button.append(nameEl, amountEl);
+    button.append(nameWrap, amountEl);
     button.onclick = () => {
       const fromSel = document.getElementById('move-from');
       if (fromSel) fromSel.value = MOVE_SOURCE_RTA;
+      setMoveAmountFromSource(rta);
       renderMoveFundingOptions();
     };
     list.appendChild(button);
     count++;
   }
 
+  let hasPotWithRoom = false;
   groups.forEach(grp => {
     if (isProtectedMoveSourceGroup(grp.name)) return;
     const items = grp.cats
@@ -636,6 +674,13 @@ function renderMoveFundingOptions() {
       .map(cat => ({ cat, available: calcCatAvailable(cat.id) }))
       .filter(item => item.available > 0);
     if (!items.length) return;
+    if (!hasPotWithRoom) {
+      const potHeaderEl = document.createElement('div');
+      potHeaderEl.className = 'move-source-section-title';
+      potHeaderEl.textContent = 'Potjes met ruimte';
+      list.appendChild(potHeaderEl);
+      hasPotWithRoom = true;
+    }
 
     const groupEl = document.createElement('div');
     groupEl.className = 'move-source-group';
@@ -645,9 +690,9 @@ function renderMoveFundingOptions() {
     items
       .sort((a, b) => b.available - a.available)
       .forEach(({ cat, available }) => {
-        const canFullyCover = amount > 0 && available >= amount;
-        const canPartlyCover = amount > 0 && !canFullyCover;
-        const tone = amount > 0
+        const canFullyCover = requestedAmount > 0 && available >= requestedAmount;
+        const canPartlyCover = requestedAmount > 0 && !canFullyCover;
+        const tone = requestedAmount > 0
           ? (canFullyCover ? 'safe' : canPartlyCover ? 'partial' : 'none')
           : 'safe';
         const button = document.createElement('button');
@@ -665,6 +710,7 @@ function renderMoveFundingOptions() {
         button.onclick = () => {
           const fromSel = document.getElementById('move-from');
           if (fromSel) fromSel.value = cat.id;
+          setMoveAmountFromSource(available);
           renderMoveFundingOptions();
         };
         list.appendChild(button);

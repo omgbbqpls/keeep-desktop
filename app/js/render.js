@@ -507,7 +507,7 @@ function renderBudget() {
         : `<div class="cat-spent">${fmt(Math.abs(spent))}</div>`;
       const budgetHtml = income
         ? `<div class="cat-budgeted"></div>`
-        : `<div class="cat-budgeted"><input class="budget-input ${budgeted === 0 ? 'budget-input-zero' : ''}" value="${fmtInput(budgeted)}" onchange="setBudget('${cat.id}', this.value)" onfocus="this.select()"></div>`;
+        : `<div class="cat-budgeted"><input class="budget-input ${budgeted === 0 ? 'budget-input-zero' : ''}" data-budget-cat-id="${cat.id}" value="${fmtInput(budgeted)}" onchange="setBudget('${cat.id}', this.value)" onkeydown="handleBudgetInputKeydown(event, '${cat.id}')" onfocus="this.select()"></div>`;
 
       const visual = getCategoryVisual(cat);
       const catIcon = visual.iconHtml;
@@ -1034,9 +1034,11 @@ function updateTxnSummary(filtered) {
       </button>
       <button class="txn-bar-icon-btn" data-undo-btn onclick="undoLastAction()" type="button" title="Ongedaan maken" aria-label="Ongedaan maken" disabled>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 7v6h6"/><path d="M3 13C5 8 9.5 5 15 5a9 9 0 0 1 0 18c-4 0-7.5-2-9-5"/></svg>
+        <span>Ongedaan maken</span>
       </button>
-      <button class="txn-bar-icon-btn" data-redo-btn onclick="redoLastAction()" type="button" title="Opnieuw" aria-label="Opnieuw" disabled>
+      <button class="txn-bar-icon-btn" data-redo-btn onclick="redoLastAction()" type="button" title="Opnieuw doen" aria-label="Opnieuw doen" disabled>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 7v6h-6"/><path d="M21 13c-2 5-6.5 8-12 8a9 9 0 0 1 0-18c4 0 7.5 2 9 5"/></svg>
+        <span>Opnieuw doen</span>
       </button>
       <button class="txn-add-btn txn-check-btn" onclick="openAccountCheck()" type="button" title="Rekening controleren">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M20 6 9 17l-5-5"/><path d="M21 12a9 9 0 1 1-2.6-6.4"/></svg>
@@ -1772,15 +1774,7 @@ function calcReadyToAssign() {
     .flatMap(bm => Object.values(bm))
     .reduce((s, v) => s + Math.round(v * 100), 0);
 
-  const overspending = groups
-    .filter(g => g.name !== 'Inkomen')
-    .flatMap(g => g.cats)
-    .reduce((s, cat) => {
-      const avail = calcCatCashAvailable(cat.id);
-      return avail < 0 ? s + avail : s;
-    }, 0);
-
-  return openingTotal + totalIncome + budgetTransferMovement - totalBudgeted + overspending;
+  return openingTotal + totalIncome + budgetTransferMovement - totalBudgeted;
 }
 
 function renderAvailabilityMode(rta) {
@@ -1800,6 +1794,7 @@ function renderAvailabilityMode(rta) {
     const startsNegative = onBudgetTotal < 0;
     banner.dataset.mode = startsNegative ? 'shortage' : 'overspend';
     if (startsNegative) {
+      _lastBudgetImbalanceRta = rta;
       if (title) title.innerHTML = `Je budget staat <span id="budget-overspend-amount">${fmt(Math.abs(onBudgetTotal))}</span> onder nul.`;
       if (sub) sub.textContent = 'Keeep helpt je dit eerst opvangen. Daarna zie je welk geld je vrij kunt verdelen.';
       if (actionBtn) actionBtn.textContent = 'Bekijk plan →';
@@ -1807,12 +1802,35 @@ function renderAvailabilityMode(rta) {
       if (title) title.innerHTML = `Je hebt <span id="budget-overspend-amount">${fmt(Math.abs(rta))}</span> meer toegewezen dan beschikbaar is.`;
       if (sub) sub.textContent = 'Verplaats geld of verlaag een potje om je maand weer kloppend te maken.';
       if (actionBtn) actionBtn.textContent = 'Budget in balans brengen →';
+      maybeShowBudgetImbalanceDialog(rta);
     }
     banner.style.display = 'flex';
   } else {
+    _lastBudgetImbalanceRta = rta;
     banner.style.display = 'none';
     banner.dataset.mode = '';
   }
+}
+
+let _lastBudgetImbalanceRta = null;
+let _budgetImbalanceDialogOpen = false;
+
+function maybeShowBudgetImbalanceDialog(rta) {
+  const wasBalanced = _lastBudgetImbalanceRta !== null && _lastBudgetImbalanceRta >= 0;
+  _lastBudgetImbalanceRta = rta;
+  if (!wasBalanced || rta >= 0 || _budgetImbalanceDialogOpen) return;
+  _budgetImbalanceDialogOpen = true;
+  setTimeout(async () => {
+    const ok = await kConfirm(
+      `Je hebt <strong>${fmt(Math.abs(rta))}</strong> meer toegewezen dan er beschikbaar is.<br><br>` +
+      `Keeep helpt je dit recht te trekken: verlaag een potje of zet geld terug naar <strong>Nog toe te wijzen</strong>.`,
+      'Je maand loopt niet meer in balans',
+      false,
+      'Budget bekijken'
+    );
+    _budgetImbalanceDialogOpen = false;
+    if (ok) openFixOverspendModal();
+  }, 80);
 }
 
 function calcOnBudgetAccountTotal() {
@@ -1886,6 +1904,8 @@ function openFixOverspendModal() {
           const deficit = Math.abs(overspent[0].avail);
           amountEl.value = (deficit / 100).toFixed(2).replace('.', ',');
         }
+        const fromSel = document.getElementById('move-from');
+        if (fromSel) fromSel.value = suggestMoveSourceForAmount(Math.abs(overspent[0].avail), overspent[0].cat.id) || '';
         if (typeof renderMoveFundingOptions === 'function') renderMoveFundingOptions();
       }
     }, 0);
@@ -2514,23 +2534,17 @@ function buildCatMeta({ cat, income, goal, goalTarget, budgeted, spent, availabl
     if (status.fillNeed > 0) {
       statusKey = 'need';
       statusText = `${fmt(status.fillNeed)} nodig`;
-    } else if (status.isFunded) {
-      statusKey = 'funded';
-      statusText = 'icon';
     }
   } else if (goal && !status.isManual) {
     if (status.rule.type === 'targetByDate' && status.targetReached) {
-      statusKey = 'funded';
-      statusText = 'icon';
+      statusKey = 'idle';
+      statusText = '';
     } else if (needLeft > 0) {
       statusKey = isUrgent ? 'need' : 'eventually';
       statusText = `${fmt(needLeft)} nodig`;
     } else if (status.isUsedUp) {
       statusKey = 'idle';
       statusText = '';
-    } else if (status.isFunded) {
-      statusKey = 'funded';
-      statusText = 'icon';
     } else {
       statusKey = 'idle';
       statusText = '';
@@ -2682,15 +2696,46 @@ function accTypeLabel(type) {
 }
 
 // ── BUDGET INPUT ──────────────────────────────────────────────────────────
-async function setBudget(catId, rawVal) {
+function focusBudgetInput(catId) {
+  if (!catId) return;
+  const input = document.querySelector(`.budget-input[data-budget-cat-id="${catId}"]`);
+  if (!input) return;
+  input.focus();
+  input.select();
+}
+
+function focusBudgetInputAfterRender(catId) {
+  if (!catId) return;
+  requestAnimationFrame(() => focusBudgetInput(catId));
+}
+
+function handleBudgetInputKeydown(event, catId) {
+  if (!event || (event.key !== 'Tab' && event.key !== 'Enter')) return;
+  const inputs = [...document.querySelectorAll('.budget-input[data-budget-cat-id]')];
+  const index = inputs.indexOf(event.currentTarget);
+  if (index === -1) return;
+  const direction = event.shiftKey ? -1 : 1;
+  const next = inputs[index + direction];
+  if (!next) return;
+  event.preventDefault();
+  setBudget(catId, event.currentTarget.value, { focusCatId: next.dataset.budgetCatId });
+}
+
+async function setBudget(catId, rawVal, options = {}) {
   const cents = parseBedrag(rawVal);
   const bm    = getBudgetMonth(currentYear, currentMonth);
   const current = Math.round((bm[catId] || 0) * 100);
+  const focusCatId = options.focusCatId || null;
+  if (current === cents) {
+    focusBudgetInputAfterRender(focusCatId);
+    return;
+  }
   const reduction = Math.max(0, current - cents);
   if (reduction > 0 && typeof confirmTakingFromTargetGoal === 'function' && typeof isTargetAmountGoal === 'function' && isTargetAmountGoal(catId)) {
     const ok = await confirmTakingFromTargetGoal(catId, reduction, 'Toch aanpassen');
     if (!ok) {
       refreshBudgetSurfaces();
+      focusBudgetInputAfterRender(catId);
       return;
     }
   }
@@ -2699,6 +2744,7 @@ async function setBudget(catId, rawVal) {
   budgets[monthKey(currentYear, currentMonth)] = bm;
   S.set('budgets', budgets);
   refreshBudgetSurfaces();
+  focusBudgetInputAfterRender(focusCatId);
 }
 
 function getGoalFillNeed(catId) {
@@ -2824,7 +2870,8 @@ async function emptyBudgetPots() {
 
   const total = entries.reduce((sum, item) => sum + item.cents, 0);
   const ok = await kConfirm(
-    `Dit zet <strong>${fmt(total)}</strong> aan toegewezen bedragen terug naar "Nog toe te wijzen". Uitgaven en transacties blijven staan.`,
+    `Je zet <strong>${fmt(total)}</strong> terug naar <strong>Nog toe te wijzen</strong>.<br><br>` +
+    `Alleen de bedragen in de kolom <strong>Toegewezen</strong> worden leeggemaakt. Je transacties, uitgaven en beschikbare saldi blijven staan.`,
     'Potjes leegmaken?',
     false,
     'Potjes leegmaken'
@@ -4424,10 +4471,11 @@ function buildMonthlyAvailableCopy(available, monthlyAmount, paidThisMonth = 0) 
   const monthsWord = fullMonths === 1 ? 'maand' : 'maanden';
   const readyVerb = fullMonths === 1 ? 'staat' : 'staan';
   const paidPrefix = currentMonthPaid ? 'Deze maand is betaald. ' : '';
+  const monthLabel = fullMonths === 1 ? '1 maand' : `${fullMonths} maanden`;
   if (fullMonths >= 1 && remainder === 0) {
     const label = `${fullMonths} ${monthsWord} beschikbaar`;
     const note = currentMonthPaid
-      ? `${paidPrefix}Er ${readyVerb} nog ${fullMonths === 1 ? '1 maand' : `${fullMonths} maanden`} klaar.`
+      ? `${paidPrefix}Er ${readyVerb} nog ${monthLabel} klaar.`
       : fullMonths === 1
       ? 'Er staat genoeg klaar voor deze maand.'
       : `Er staat genoeg klaar voor ${fullMonths} maanden.`;
@@ -4437,7 +4485,7 @@ function buildMonthlyAvailableCopy(available, monthlyAmount, paidThisMonth = 0) 
     return {
       badge: `${fullMonths} ${monthsWord} + ${fmt(remainder)} beschikbaar`,
       note: currentMonthPaid
-        ? `${paidPrefix}Er ${readyVerb} nog ${fullMonths === 1 ? '1 maand' : `${fullMonths} maanden`} klaar, plus ${fmt(remainder)} extra.`
+        ? `${paidPrefix}Er ${readyVerb} nog ${monthLabel} klaar, plus ${fmt(remainder)} extra.`
         : `Er staat genoeg klaar voor ${fullMonths === 1 ? 'deze maand' : `${fullMonths} maanden`}, plus ${fmt(remainder)} extra.`
     };
   }
@@ -4447,6 +4495,11 @@ function buildMonthlyAvailableCopy(available, monthlyAmount, paidThisMonth = 0) 
       ? `${paidPrefix}Daarnaast staat er ${fmt(available)} klaar.`
       : `Er staat ${fmt(available)} klaar voor dit potje.`
   };
+}
+
+function buildMonthlyNeededCopy(togo, spentThisMonth = 0) {
+  const paid = spentThisMonth > 0 ? `Er is deze maand al ${fmt(spentThisMonth)} betaald. ` : '';
+  return `${paid}Zet nog ${fmt(togo)} klaar om dit maandbedrag volledig af te dekken.`;
 }
 
 function refreshCatDetail() {
@@ -4486,7 +4539,7 @@ function refreshCatDetail() {
   const cashSpentEl = document.getElementById('cdp-cash-spent');
   const cashSpentLabel = document.getElementById('cdp-cash-spent-label');
   const showCreditSpent = getBudgetCreditAccounts().length > 0;
-  if (cashSpentLabel) cashSpentLabel.textContent = showCreditSpent ? 'Zelf uitgegeven' : 'Uitgegeven deze maand';
+  if (cashSpentLabel) cashSpentLabel.textContent = showCreditSpent ? 'Vanaf rekening betaald' : 'Uitgegeven deze maand';
   if (cashSpentEl) {
     cashSpentEl.textContent = fmt(cashSpent);
     cashSpentEl.className = 'cdp-val';
@@ -4602,10 +4655,12 @@ function refreshCatDetail() {
           : `Je doelbedrag staat klaar. Keeep helpt je het beschikbaar te houden.`
         : isTargetRule && !targetHasDate
         ? ''
+        : isTargetRule
+        ? ''
         : isPanelOverspent
         ? `Er is meer uitgegeven dan beschikbaar was`
         : isMonthlyRule && isNeeded
-        ? `Wijs nog ${fmt(togo)} toe om dit potje te vullen.`
+        ? buildMonthlyNeededCopy(togo, spentAbs)
         : isMonthlyRule && monthlyAvailableCopy.note
         ? monthlyAvailableCopy.note
         : isMonthlyRule && fundingStatus.isUsedUp
@@ -4790,6 +4845,7 @@ function cdpCoverOverspending() {
 }
 
 function suggestMoveSourceForAmount(amount, targetCatId) {
+  if (calcReadyToAssign() >= amount) return '__ready_to_assign__';
   const candidates = groups
     .filter(grp => !isProtectedMoveSourceGroup(grp.name))
     .flatMap(grp => grp.cats)
